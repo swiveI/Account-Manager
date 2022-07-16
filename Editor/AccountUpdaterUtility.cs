@@ -1,4 +1,4 @@
-﻿// Gunsmth is a utility for generating animator controlers for firearms on VRChat avatars.
+﻿// Account manager is a tool for converting spreadsheet data, via csv, into arrays for easy access by udonbehavours within VRChat.
 // Copyright (C) 2022 Adam Thomas
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
