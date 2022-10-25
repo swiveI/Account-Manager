@@ -21,7 +21,7 @@ using LoliPoliceDepartment.Utilities;
 using UnityEditor.Experimental.GraphView;
 using UdonSharpEditor;
 
-namespace LoliPoliceDepartment.Utilities
+namespace LoliPoliceDepartment.Utilities.AccountManager
 {
     [CustomEditor(typeof(OfficerAccountManager))]
     public class AccountManagerInspector : Editor, ISearchWindowProvider

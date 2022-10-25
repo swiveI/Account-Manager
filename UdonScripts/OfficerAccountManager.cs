@@ -19,16 +19,16 @@ using VRC.SDKBase;
 using System;
 
 
-namespace LoliPoliceDepartment.Utilities
+namespace LoliPoliceDepartment.Utilities.AccountManager
 {
     public class OfficerAccountManager : UdonSharpBehaviour
     {
-        public string[][] OfficerData;
-        public int[][] CustomLists;
+        [VRC.Udon.Serialization.OdinSerializer.OdinSerialize] /* UdonSharp auto-upgrade: serialization */ public string[][] OfficerData;
+        [VRC.Udon.Serialization.OdinSerializer.OdinSerialize] /* UdonSharp auto-upgrade: serialization */ public int[][] CustomLists;
        
         public int LocalOfficerID;
 
-        void Start()
+        private void Start()
         {
             _LocalOfficerCheck();
         }

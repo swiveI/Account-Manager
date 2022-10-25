@@ -24,7 +24,7 @@ using System.Runtime.CompilerServices;
 using TMPro;
 using UnityEngine.SceneManagement;
 
-namespace LoliPoliceDepartment.Utilities
+namespace LoliPoliceDepartment.Utilities.AccountManager
 {
     public class AccountUpdaterUtility : EditorWindow   
     {
@@ -38,7 +38,7 @@ namespace LoliPoliceDepartment.Utilities
         private Vector2 scroll;
 
         private const string DatasheetKeyPath = "LPD/AccountManager/DatasheetAsstetPath";
-        enum dataType {csv, json};
+        enum dataType {csv};
         enum mode {Replace, Add}
         [SerializeField] dataType format;
         [SerializeField] mode datamode;
@@ -117,10 +117,10 @@ namespace LoliPoliceDepartment.Utilities
                         case dataType.csv:
                             parseCSV();
                             break;
-
+                            /*
                         case dataType.json:
                             parseJSON();
-                            break;
+                            break;*/
                     }
                     UpdateCustomLists();
                 }
@@ -241,9 +241,10 @@ namespace LoliPoliceDepartment.Utilities
             GUILayout.BeginArea(new Rect(0, Screen.height - 43f, Screen.width, 25f));
             using (new GUILayout.HorizontalScope(EditorStyles.helpBox))
             {
-                GUILayout.FlexibleSpace();
-                GUILayout.Label("Thank you for your support <3", EditorStyles.boldLabel);
-                GUILayout.FlexibleSpace();
+                if (GUILayout.Button(new GUIContent("Discord"), EditorStyles.miniButtonMid, GUILayout.Width(Screen.width / 4), GUILayout.Height(43))) Application.OpenURL("https://discord.gg/lpd");
+                if (GUILayout.Button(new GUIContent("Twitter"), EditorStyles.miniButtonMid, GUILayout.Width(Screen.width / 4), GUILayout.Height(43))) Application.OpenURL("https://twitter.com/LPD_vrchat");
+                if (GUILayout.Button(new GUIContent("Youtube"), EditorStyles.miniButtonMid, GUILayout.Width(Screen.width / 4), GUILayout.Height(43))) Application.OpenURL("https://www.youtube.com/c/LoliPoliceDepartment");
+                if (GUILayout.Button(new GUIContent("Patreon"), EditorStyles.miniButtonMid, GUILayout.Width(Screen.width / 4), GUILayout.Height(43))) Application.OpenURL("https://www.patreon.com/Karet");
             }
             GUILayout.EndArea();
         }
