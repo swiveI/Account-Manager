@@ -53,7 +53,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         }
         private void OnEnable()
         {
-            HeaderTexture = (Texture2D)AssetDatabase.LoadAssetAtPath("Assets/LPD/AccountManager/Resources/TITLEBAR.png", typeof(Texture2D));
+            HeaderTexture = (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/TITLEBAR.png", typeof(Texture2D));
 
             accountManager = FindBehaviourOfType<OfficerAccountManager>();
             if (EditorPrefs.HasKey(DatasheetKeyPath))
@@ -219,7 +219,8 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                 GUILayout.EndHorizontal();
                 if(GUILayout.Button("Add to scene"))
                 {
-                    PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath("Assets/LPD/AccountManager/Officer Account Manager.prefab", typeof(GameObject)));
+                    GameObject am = (GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Officer Account Manager.prefab", typeof(GameObject)));
+                    PrefabUtility.UnpackPrefabInstance(am, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
                     if (officerdata == null)
                     {
                         Debug.Log("<color=navy><b>Account Manager:</b></color> Added officer data");
