@@ -45,7 +45,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         public int _IDLookup(string name)
         {
             int low = 0;
-            int high = OfficerData.Length;
+            int high = OfficerData.Length - 1;
 
             while(low <= high)
             {
