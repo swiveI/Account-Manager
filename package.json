@@ -5,12 +5,16 @@
   "description": "Account manager is a tool for converting spreadsheet data, via csv, into arrays for easy access by udonbehavours within VRChat.",
   "unity": "2019.4",
   "unityRelease": "31f1",
- "keywords": [
+  "keywords": [
     "VRChat",
     "LPD"
   ],
   "author": {
     "name": "Loli Police Department",
     "url": "discord.gg/lpd"
+  },
+  "vpmDependencies" : {
+    "com.vrchat.base" : "",
+    "com.vrchat.worlds" : ""
   }
 }
