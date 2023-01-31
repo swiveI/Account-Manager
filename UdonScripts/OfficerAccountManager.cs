@@ -18,7 +18,6 @@ using UnityEngine;
 using VRC.SDKBase;
 using System;
 
-
 namespace LoliPoliceDepartment.Utilities.AccountManager
 {
     public class OfficerAccountManager : UdonSharpBehaviour
@@ -38,7 +37,8 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                     _LocalOfficerID = -1; //Default to -1 "not found"
                     if (OfficerData.Length == 0)
                     {
-                        Debug.LogError("Officer Account Manager: OfficerData is empty", this);
+                        Debug.LogError("Officer Account Manager: OfficerData is empty, please update the " +
+                            "officer list using the LPD -> AccountManager window", this);
                         return -1;
                     }
                     _LocalOfficerID = _IDLookup(Networking.LocalPlayer.displayName);
@@ -101,6 +101,21 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
             return -1;
         }
 
+        //Return whether the specified player is an officer
+        public bool _IsOfficer(string name)
+        {
+            return _IDLookup(name) != -1;
+        }
+        public bool _IsOfficer(VRCPlayerApi player)
+        {
+            //Shortcut for local player
+            if (player.isLocal)
+            {
+                return LocalOfficerID != -1;
+            }
+            return _IsOfficer(player.displayName);
+        }
+
         //Main function for getting values
         public string _GetString(int officerID, int roleIndex)
         {
@@ -118,6 +133,12 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         }
 
         //Different flavors of the _Get function
+        /* Default values if the officerID or roleIndex is out of range
+         *   string: ""
+         *   bool: false
+         *   int: 0
+         *   float: 0
+         */
         //String
         public string _GetString(string officerName, string roleName) { return _GetString(_IDLookup(officerName), _RoleLookup(roleName)); }
         public string _GetString(string officerName, int roleIndex  ) { return _GetString(_IDLookup(officerName), roleIndex); }
@@ -132,7 +153,9 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
             bool success = bool.TryParse(value, out bool result);
             if (!success)
             {
-                Debug.LogError("Account Manager: Officer \"" + OfficerData[officerID][1] + "\" role \"" + RoleNames[roleIndex] + "\" could not parse \"" + value + "\" as a bool", this);
+                string officerName = officerID == -1 ? "null" : OfficerData[officerID][1];
+                string roleName = roleIndex == -1 ? "null" : RoleNames[roleIndex];
+                Debug.LogWarning("Account Manager: Officer \"" + officerName + "\" role \"" + roleName + "\" could not parse \"" + value + "\" as a bool", this);
                 return false;
             }
             return result;
@@ -150,7 +173,9 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
             bool success = int.TryParse(value, out int result);
             if (!success)
             {
-                Debug.LogError("Account Manager: Officer \"" + OfficerData[officerID][1] + "\" role \"" + RoleNames[roleIndex] + "\" could not parse \"" + value + "\" as an int", this);
+                string officerName = officerID == -1 ? "null" : OfficerData[officerID][1];
+                string roleName = roleIndex == -1 ? "null" : RoleNames[roleIndex];
+                Debug.LogWarning("Account Manager: Officer \"" + officerName + "\" role \"" + roleName + "\" could not parse \"" + value + "\" as an int", this);
                 return 0;
             }
             return result;
@@ -168,7 +193,9 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
             bool success = float.TryParse(value, out float result);
             if (!success)
             {
-                Debug.LogError("Account Manager: Officer \"" + OfficerData[officerID][1] + "\" role \"" + RoleNames[roleIndex] + "\" could not parse \"" + value + "\" as a float", this);
+                string officerName = officerID == -1 ? "null" : OfficerData[officerID][1];
+                string roleName = roleIndex == -1 ? "null" : RoleNames[roleIndex];
+                Debug.LogWarning("Account Manager: Officer \"" + officerName + "\" role \"" + roleName + "\" could not parse \"" + value + "\" as a float", this);
                 return 0;
             }
             return result;

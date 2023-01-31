@@ -1,4 +1,6 @@
-﻿
+﻿//Disable unused variable warning
+#pragma warning disable CS0414
+
 using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
