@@ -1,0 +1,16 @@
+{
+    "name": "LoliPoliceDepartment.Utilities.AccountManager.Example",
+    "references": [
+        "GUID:99835874ee819da44948776e0df4ff1d",
+        "GUID:f97707b2eeb249246b8e817b27a1c125"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
