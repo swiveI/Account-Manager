@@ -51,6 +51,12 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
 
+            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            GUILayout.Label("Total Roles: " + Mathf.Max(0, AccountManager.RoleNames.Length - 2), EditorStyles.boldLabel);
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
             GUILayout.Space(5f);
             GUILayout.BeginHorizontal();
             GUILayout.FlexibleSpace();

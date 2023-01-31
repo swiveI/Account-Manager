@@ -268,7 +268,6 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         }
         public void UpdateCustomLists()
         {
-            accountManager.UpdateProxy();
             List<int[]> TempLists = new List<int[]>();
             for (int index = 0; index < officerdata.CustomLists.Count; index++)
             {
@@ -283,13 +282,12 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                 TempLists.Add(officerdata.CustomLists[index].Ids.ToArray());
             }
             accountManager.CustomLists = TempLists.ToArray();
-            accountManager.ApplyProxyModifications();
         }
         public static T FindBehaviourOfType<T>() where T : UdonSharpBehaviour
         {
             foreach (GameObject obj in SceneManager.GetActiveScene().GetRootGameObjects())
             {
-                T foundBehaviours = obj.GetUdonSharpComponentInChildren<T>();
+                T foundBehaviours = obj.GetComponentInChildren<T>();
                 if (foundBehaviours != null)
                 {
                     return foundBehaviours;
@@ -300,21 +298,18 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
 
         private void ClearData()
         {
-            accountManager.UpdateProxy();
             //clear udon behaviour
+            accountManager.RoleNames = new string[0];
             accountManager.OfficerData = new string[0][];
             accountManager.CustomLists = new int[0][];
             //clear storage object
             officerdata.DataTitles = new string[0];
             officerdata.CustomLists =  new List<CustomDataList>(0);
-            accountManager.ApplyProxyModifications();
         }
         private void parseCSV()
         {
             if (DataSheet != null)
             {
-                accountManager.UpdateProxy();
-
                 string text = DataSheet.text;
                 List<string> dataLines = new List<string>(text.Split('\n'));
                 List<string> dataColumns = new List<string>(dataLines[0].Split('\u002C'));
@@ -339,6 +334,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                 if (datamode == mode.Replace)
                 {
                     accountManager.OfficerData = dataset;
+                    accountManager.RoleNames = dataColumns.ToArray();
                     officerdata.DataTitles = dataColumns.ToArray();
                 }
                 if (datamode == mode.Add)
@@ -347,7 +343,6 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                     accountManager.OfficerData = combinedDataset;
                 }
                 Debug.Log("<color=navy><b>Account Manager:</b></color> parsed " + format + " data for " + accountManager.OfficerData.Length + " users");
-                accountManager.ApplyProxyModifications();
             }
             else
             {
@@ -356,9 +351,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         }
         private void parseJSON()
         {
-            accountManager.UpdateProxy();
             Debug.Log("<color=navy><b>Account Manager:</b></color> JSON is not supported yet :c");
-            accountManager.ApplyProxyModifications();
         }
     }
 }

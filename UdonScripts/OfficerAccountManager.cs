@@ -23,25 +23,37 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
 {
     public class OfficerAccountManager : UdonSharpBehaviour
     {
-        [VRC.Udon.Serialization.OdinSerializer.OdinSerialize] /* UdonSharp auto-upgrade: serialization */ public string[][] OfficerData;
-        [VRC.Udon.Serialization.OdinSerializer.OdinSerialize] /* UdonSharp auto-upgrade: serialization */ public int[][] CustomLists;
+        [SerializeField] public string[] RoleNames;
+        [SerializeField] public string[][] OfficerData;
+        [SerializeField] public int[][] CustomLists;
        
-        public int LocalOfficerID;
-
-        private void Start()
+        //LocalOfficerID (resolves on-demand rather than on start to avoid race conditions, can be called immediately)
+        private int _LocalOfficerID = -2; //Uninitialized
+        public int LocalOfficerID
         {
-            _LocalOfficerCheck();
-        }
-
-        private void _LocalOfficerCheck()
-        {
-            LocalOfficerID = _IDLookup(Networking.LocalPlayer.displayName);
-            if (LocalOfficerID == -1)
+            get
             {
-                return;
+                if (_LocalOfficerID == -2) //Initialize
+                {
+                    _LocalOfficerID = -1; //Default to -1 "not found"
+                    if (OfficerData.Length == 0)
+                    {
+                        Debug.LogError("Officer Account Manager: OfficerData is empty", this);
+                        return -1;
+                    }
+                    _LocalOfficerID = _IDLookup(Networking.LocalPlayer.displayName);
+                }
+                return _LocalOfficerID;
+            }
+
+            private set
+            {
+                _LocalOfficerID = value;
             }
         }
 
+        //Look up an officer's ID by name
+        //return -1 if not found
         public int _IDLookup(string name)
         {
             int low = 0;
@@ -68,8 +80,104 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                     high = mid - 1;
                 }
             }
-            Debug.Log("Account Manager: No Officer ID was found for user: " + name);
+            Debug.Log("Account Manager: No Officer ID was found for user: " + name, this);
             return -1;
         }
+
+        //Look up a role's index by its name
+        //return -1 if not found
+        //Note: Roles are not sorted, so this is a linear search
+        public int _RoleLookup(string roleName)
+        {
+            //Linear search, too lazy, not sorted
+            for (int i = 0; i < RoleNames.Length; i++)
+            {
+                if (RoleNames[i] == roleName)
+                {
+                    return i;
+                }
+            }
+            Debug.LogWarning("Account Manager: Role " + roleName + " was not found", this);
+            return -1;
+        }
+
+        //Main function for getting values
+        public string _GetString(int officerID, int roleIndex)
+        {
+            if (officerID < 0 || officerID >= OfficerData.Length)
+            {
+                Debug.LogWarning("Account Manager: Officer ID " + officerID + " is out of range", this);
+                return "";
+            }
+            if (roleIndex < 0 || roleIndex >= OfficerData[0].Length)
+            {
+                Debug.LogWarning("Account Manager: Role index " + roleIndex + " is out of range", this);
+                return "";
+            }
+            return OfficerData[officerID][roleIndex];
+        }
+
+        //Different flavors of the _Get function
+        //String
+        public string _GetString(string officerName, string roleName) { return _GetString(_IDLookup(officerName), _RoleLookup(roleName)); }
+        public string _GetString(string officerName, int roleIndex  ) { return _GetString(_IDLookup(officerName), roleIndex); }
+        public string _GetString(int officerID     , string roleName) { return _GetString(officerID, _RoleLookup(roleName)); }
+        //String, local
+        public string _GetString(int roleIndex  ) { return _GetString(LocalOfficerID, roleIndex); }
+        public string _GetString(string roleName) { return _GetString(LocalOfficerID, _RoleLookup(roleName)); }
+        //Bool
+        public bool _GetBool(int officerID, int roleIndex)
+        {
+            string value = _GetString(officerID, roleIndex);
+            bool success = bool.TryParse(value, out bool result);
+            if (!success)
+            {
+                Debug.LogError("Account Manager: Officer \"" + OfficerData[officerID][1] + "\" role \"" + RoleNames[roleIndex] + "\" could not parse \"" + value + "\" as a bool", this);
+                return false;
+            }
+            return result;
+        }
+        public bool _GetBool(string officerName, string roleName) { return _GetBool(_IDLookup(officerName), _RoleLookup(roleName)); }
+        public bool _GetBool(string officerName, int roleIndex  ) { return _GetBool(_IDLookup(officerName), roleIndex); }
+        public bool _GetBool(int officerID     , string roleName) { return _GetBool(officerID, _RoleLookup(roleName)); }
+        //Bool, local
+        public bool _GetBool(int roleIndex  ) { return _GetBool(LocalOfficerID, roleIndex); }
+        public bool _GetBool(string roleName) { return _GetBool(LocalOfficerID, _RoleLookup(roleName)); }
+        //Int
+        public int _GetInt(int officerID, int roleIndex)
+        {
+            string value = _GetString(officerID, roleIndex);
+            bool success = int.TryParse(value, out int result);
+            if (!success)
+            {
+                Debug.LogError("Account Manager: Officer \"" + OfficerData[officerID][1] + "\" role \"" + RoleNames[roleIndex] + "\" could not parse \"" + value + "\" as an int", this);
+                return 0;
+            }
+            return result;
+        }
+        public int _GetInt(string officerName, string roleName) { return _GetInt(_IDLookup(officerName), _RoleLookup(roleName)); }
+        public int _GetInt(string officerName, int roleIndex  ) { return _GetInt(_IDLookup(officerName), roleIndex); }
+        public int _GetInt(int officerID     , string roleName) { return _GetInt(officerID, _RoleLookup(roleName)); }
+        //Int, local
+        public int _GetInt(int roleIndex  ) { return _GetInt(LocalOfficerID, roleIndex); }
+        public int _GetInt(string roleName) { return _GetInt(LocalOfficerID, _RoleLookup(roleName)); }
+        //Float
+        public float _GetFloat(int officerID, int roleIndex)
+        {
+            string value = _GetString(officerID, roleIndex);
+            bool success = float.TryParse(value, out float result);
+            if (!success)
+            {
+                Debug.LogError("Account Manager: Officer \"" + OfficerData[officerID][1] + "\" role \"" + RoleNames[roleIndex] + "\" could not parse \"" + value + "\" as a float", this);
+                return 0;
+            }
+            return result;
+        }
+        public float _GetFloat(string officerName, string roleName) { return _GetFloat(_IDLookup(officerName), _RoleLookup(roleName)); }
+        public float _GetFloat(string officerName, int roleIndex  ) { return _GetFloat(_IDLookup(officerName), roleIndex); }
+        public float _GetFloat(int officerID     , string roleName) { return _GetFloat(officerID, _RoleLookup(roleName)); }
+        //Float, local
+        public float _GetFloat(int roleIndex  ) { return _GetFloat(LocalOfficerID, roleIndex); }
+        public float _GetFloat(string roleName) { return _GetFloat(LocalOfficerID, _RoleLookup(roleName)); }
     }
 }

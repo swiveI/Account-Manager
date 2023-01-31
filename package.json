@@ -15,6 +15,7 @@
   },
   "vpmDependencies" : {
     "com.vrchat.base" : "",
-    "com.vrchat.worlds" : ""
+    "com.vrchat.worlds" : "",
+    "com.vrchat.udonsharp": ""
   }
 }
