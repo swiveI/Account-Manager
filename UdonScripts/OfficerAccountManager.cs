@@ -22,6 +22,13 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
 {
     public class OfficerAccountManager : UdonSharpBehaviour
     {
+        //NOTE:
+        //For the most efficient runtime performance call Officerdata[int OfficerID][int RoleID]
+        //or call the _Get functions using int OfficerID and int RoleID. String lookups are slow
+        //but extremely convenient when you only need to do it a few times. You can speed up
+        //string lookups by caching the result of _IDLookup(string name) or _RoleLookup(string name)
+        //but this is not necessary unless you are doing it a lot.
+
         [SerializeField] public string[] RoleNames;
         [SerializeField] public string[][] OfficerData;
         [SerializeField] public int[][] CustomLists;
@@ -80,7 +87,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                     high = mid - 1;
                 }
             }
-            Debug.Log("Account Manager: No Officer ID was found for user: " + name, this);
+            Debug.LogWarning("Account Manager: User \"" + name + "\" is not in the officer database, they will be treated as ID=-1, name=\"null\"", this);
             return -1;
         }
 
