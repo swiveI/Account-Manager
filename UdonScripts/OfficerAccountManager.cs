@@ -29,6 +29,16 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         //string lookups by caching the result of _IDLookup(string name) or _RoleLookup(string name)
         //but this is not necessary unless you are doing it a lot.
 
+        //To look up the local officer, use _GetString(role)
+        //To look up someone else, use _GetString(officer, role)
+        //_GetBool(), _GetInt(), and _GetFloat() work the same way
+
+        //Default return values for _Get functions if the officer or role is not found:
+        //string: ""
+        //bool: false
+        //int: 0
+        //float: 0
+        
         [SerializeField] public string[] RoleNames;
         [SerializeField] public string[][] OfficerData;
         [SerializeField] public int[][] CustomLists;
@@ -115,13 +125,13 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         }
         public bool _IsOfficer(VRCPlayerApi player)
         {
-            //Shortcut for local player
-            if (player.isLocal)
-            {
-                return LocalOfficerID != -1;
-            }
             return _IsOfficer(player.displayName);
         }
+        public bool _IsLocalPlayerOfficer()
+        {
+            return LocalOfficerID != -1;
+        }
+
 
         //Main function for getting values
         public string _GetString(int officerID, int roleIndex)

@@ -9,6 +9,7 @@ namespace LoliPoliceDepartment.Examples
 {
     public class RestrictedPickup : UdonSharpBehaviour
     {
+        //For notes on the Account Manager, see OfficerAccountManager.cs line 25
         public OfficerAccountManager accountManager; //Our reference to the account manager
         [Space]
         public string allowedRole = "Staff"; //Only allow players with this role set to "true" to see this object

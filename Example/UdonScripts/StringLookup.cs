@@ -9,6 +9,7 @@ namespace LoliPoliceDepartment.Examples
 {
     public class StringLookup : UdonSharpBehaviour
     {
+        //For notes on the Account Manager, see OfficerAccountManager.cs line 25
         public OfficerAccountManager accountManager; //Our reference to the account manager
         public UnityEngine.UI.Text text; //The text object to display the string
         [Space]

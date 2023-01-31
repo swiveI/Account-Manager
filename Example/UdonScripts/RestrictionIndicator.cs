@@ -9,6 +9,7 @@ namespace LoliPoliceDepartment.Examples
 {
     public class RestrictionIndicator : UdonSharpBehaviour
     {
+        //For notes on the Account Manager, see OfficerAccountManager.cs line 25
         public OfficerAccountManager accountManager; //Our reference to the account manager
         [Space]
         public string roleName = "Staff"; //Role to look up
