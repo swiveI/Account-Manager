@@ -29,7 +29,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         //string lookups by caching the result of _IDLookup(string name) or _RoleLookup(string name)
         //but this is not necessary unless you are doing it a lot.
 
-        //To look up the local officer, use _GetString(role)
+        //To look up data for the local officer, use _GetString(role)
         //To look up someone else, use _GetString(officer, role)
         //_GetBool(), _GetInt(), and _GetFloat() work the same way
 
