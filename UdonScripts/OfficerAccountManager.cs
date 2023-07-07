@@ -16,10 +16,17 @@
 using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
+using VRC.Udon;
 using System;
+using VRC.SDK3.StringLoading;
 
 namespace LoliPoliceDepartment.Utilities.AccountManager
 {
+    public enum DataSource
+    {
+        Local = 0,
+        Network = 1
+    }
     public class OfficerAccountManager : UdonSharpBehaviour
     {
         //NOTE:
@@ -39,9 +46,15 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         //int: 0
         //float: 0
         
+        //Are we ready to perform lookups? (i.e. Are we waiting for a web server to respond with our data?)
+        public bool isInitialized { get; private set; } = false;
+        public bool initializedSuccessfully { get; private set; } = true; //Set to false if initialization fails
+        public DataSource dataSource = DataSource.Local;
+        [SerializeField] public VRCUrl RemoteDataURL = VRCUrl.Empty;
         [SerializeField] public string[] RoleNames;
         [SerializeField] public string[][] OfficerData;
         [SerializeField] public int[][] CustomLists;
+        [SerializeField] public UdonEvent OnInitializedListeners;
        
         //LocalOfficerID (resolves on-demand rather than on start to avoid race conditions, can be called immediately)
         private int _LocalOfficerID = -2; //Uninitialized
@@ -67,6 +80,143 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
             {
                 _LocalOfficerID = value;
             }
+        }
+
+        private void Awake() {
+            //Setup if using local data
+            if (dataSource == DataSource.Local)
+            {
+                isInitialized = true;
+                OnInitializedListeners.SendCustomEvent("OnInitialized");
+            }
+        }
+
+        private void Start() {
+            //Setup if using remote data
+            if (dataSource == DataSource.Network)
+            {
+                //Request data from the web server
+                VRCStringDownloader.LoadUrl(RemoteDataURL, (VRC.Udon.Common.Interfaces.IUdonEventReceiver) this);
+            }
+        }
+
+        //Allows UdonBehaviors to be notified when the data is ready
+        public void NotifyWhenInitialized(UdonBehaviour receiver, string eventName)
+        {
+            if (isInitialized)
+            {
+                //Wait a frame so people can count on this not occuring instantly
+                receiver.SendCustomEventDelayedFrames(eventName, 1);
+            }
+            else
+            {
+                //Add the receiver to the list of listeners
+                OnInitializedListeners.AddReceiver(receiver, eventName);
+            }
+        }
+
+        //Callback for when the web server responds with our data
+        public override void OnStringLoadSuccess(IVRCStringDownload result) => ParseCSV(result.Result);
+        public override void OnStringLoadError(IVRCStringDownload result) {
+            isInitialized = true;
+            initializedSuccessfully = false;
+            //Let everybody know we tried
+            OnInitializedListeners.Trigger();
+            Debug.Log("Officer Account Manager: Failed to load data from " + RemoteDataURL.Get());
+        }
+
+        //Parse the CSV file
+        public void ParseCSV(string csv)
+        {
+            // List<string> dataLines = new List<string>(text.Split('\n'));
+            // List<string> dataColumns = new List<string>(dataLines[0].Split('\u002C'));
+            string dataLinesString = csv;
+            string dataColumnsString = dataLinesString.Substring(0, dataLinesString.IndexOf('\n'));
+
+            // dataColumns.Insert(0, "ID");
+            dataColumnsString = "ID" + '\u002C' + dataColumnsString;
+
+            //remove the first line
+            // dataLines.RemoveAt(0);
+            dataLinesString = dataLinesString.Substring(dataLinesString.IndexOf('\n') + 1);
+            
+            //remove empty lines
+            // dataLines.RemoveAll(string.IsNullOrEmpty);
+            string[] dataLines = dataLinesString.Split('\n');
+            bool[] emptyLines = new bool[dataLines.Length];
+            int emptyLineCount = 0;
+            for(int i = 0; i < dataLines.Length; i++)
+            {
+                if (string.IsNullOrEmpty(dataLines[i]))
+                {
+                    emptyLines[i] = true;
+                    emptyLineCount++;
+                }
+            }
+            //Copy only non-empty lines
+            string[] newDataLines = new string[dataLines.Length - emptyLineCount];
+            int newDataLinesIndex = 0;
+            for (int i = 0; i < dataLines.Length; i++)
+            {
+                if (!emptyLines[i])
+                {
+                    newDataLines[newDataLinesIndex] = dataLines[i];
+                    newDataLinesIndex++;
+                }
+            }
+            dataLines = newDataLines;
+            string[] dataColumns = dataColumnsString.Split('\u002C');
+            
+            // dataLines.Sort();
+            Chanoler.Utility.ChanArray.Sort(dataLines);
+
+            //create dataset
+            string[][] dataset = new string[dataLines.Length][];
+
+            for (int index = 0; index < dataLines.Length; index++)
+            {
+                string[] splitData = dataLines[index].Split('\u002C');
+                if (splitData.Length != dataColumns.Length)
+                {
+                    int columnCount = dataColumns.Length;
+                    int dataCount = splitData.Length;
+                    
+                    dataCount = Mathf.Clamp(dataCount, dataCount, columnCount);
+                    
+                    string[] correctedData = new string[columnCount];
+                    for (int i = 0; i < dataCount; i++)
+                    {
+                        correctedData[i] = splitData[i];
+                    }
+                    for (int i = splitData.Length; i < columnCount; i++)
+                    {
+                        correctedData[i] = "";
+                    }
+                    splitData = correctedData;
+                }
+                
+                string[] accountData = splitData;
+                // accountData.Insert(0, index.ToString());
+                string[] newAccountData = new string[accountData.Length + 1];
+                newAccountData[0] = index.ToString();
+                for (int i = 0; i < accountData.Length; i++)
+                {
+                    newAccountData[i + 1] = accountData[i];
+                }
+                accountData = newAccountData;
+                
+                //accountData.Last().Trim();
+
+                dataset[index] = accountData; 
+            }
+            this.OfficerData = dataset;
+            this.RoleNames = dataColumns;
+            // officerdata.DataTitles = dataColumns; //Idk what this does so I'm commenting it out for now
+            Debug.Log("<color=navy><b>Account Manager:</b></color> parsed " + dataSource + " data for " + OfficerData.Length + " users");
+
+            isInitialized = true;
+            initializedSuccessfully = true;
+            OnInitializedListeners.Trigger();
         }
 
         //Look up an officer's ID by name

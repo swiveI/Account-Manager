@@ -29,6 +29,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
     public class AccountUpdaterUtility : EditorWindow   
     {
         [SerializeField] TextAsset DataSheet;
+        [SerializeField] string RemoteDataSheetURL;
         [SerializeField] OfficerAccountManager accountManager;
         [SerializeField] Texture2D HeaderTexture;
         [SerializeField] string customListValue;
@@ -44,7 +45,8 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         
         
         private const string DatasheetKeyPath = "LPD/AccountManager/DatasheetAsstetPath";
-        enum dataType {csv};
+        private const string RemoteDatasheetURLKeyPath = "LPD/AccountManager/RemoteDatasheetURL";
+        public enum dataType {csv, stringLoading};
         enum mode {Replace, Add}
         [SerializeField] dataType format;
         [SerializeField] mode datamode;
@@ -69,6 +71,10 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
             if (EditorPrefs.HasKey(DatasheetKeyPath))
             {
                 DataSheet = AssetDatabase.LoadAssetAtPath<TextAsset>(EditorPrefs.GetString(DatasheetKeyPath));
+            }
+            if (EditorPrefs.HasKey(RemoteDatasheetURLKeyPath))
+            {
+                RemoteDataSheetURL = EditorPrefs.GetString(RemoteDatasheetURLKeyPath);
             }
             if (accountManager == null)
             {
@@ -97,20 +103,41 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                 GUILayout.BeginArea(new Rect(0, drawarea, Screen.width, Screen.height));
                 scroll = EditorGUILayout.BeginScrollView(scroll, GUILayout.MaxHeight((Screen.height - drawarea) - 45));
                 GUILayout.Space(5f);
-                GUILayout.Label("Officer DataSheet", EditorStyles.boldLabel);
+                if (format == dataType.stringLoading) GUILayout.Label("Officer DataSheet URL", EditorStyles.boldLabel);
+                else GUILayout.Label("Officer DataSheet", EditorStyles.boldLabel);
 
                 EditorGUI.BeginChangeCheck();
-                DataSheet = (TextAsset)EditorGUILayout.ObjectField(DataSheet, typeof(TextAsset), true);
+                if (format == dataType.stringLoading) RemoteDataSheetURL = EditorGUILayout.TextField(RemoteDataSheetURL);
+                else DataSheet = (TextAsset)EditorGUILayout.ObjectField(DataSheet, typeof(TextAsset), true);
                 if (EditorGUI.EndChangeCheck())
                 {
-                    EditorPrefs.SetString(DatasheetKeyPath, AssetDatabase.GetAssetPath(DataSheet));
+                    if (format == dataType.stringLoading)
+                    {
+                        EditorPrefs.SetString(RemoteDatasheetURLKeyPath, RemoteDataSheetURL);
+                        accountManager.RemoteDataURL = new VRC.SDKBase.VRCUrl(RemoteDataSheetURL);
+                    }
+                    else EditorPrefs.SetString(DatasheetKeyPath, AssetDatabase.GetAssetPath(DataSheet));
                 }
 
                 GUILayout.Space(5f);
                 GUILayout.BeginHorizontal();
                 GUILayout.BeginVertical();
                 GUILayout.Label("Format", EditorStyles.boldLabel);
+                EditorGUI.BeginChangeCheck();
                 format = (dataType)EditorGUILayout.EnumPopup(format);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    if (format == dataType.stringLoading)
+                    {
+                        accountManager.RemoteDataURL = new VRC.SDKBase.VRCUrl(RemoteDataSheetURL);
+                        accountManager.dataSource = DataSource.Network;
+                    }
+                    else
+                    {
+                        accountManager.RemoteDataURL = null;
+                        accountManager.dataSource = DataSource.Local;
+                    }
+                }
                 GUILayout.EndVertical();
                 
                 GUILayout.BeginVertical();
@@ -120,6 +147,8 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                 
                 GUILayout.BeginVertical();
                 GUILayout.Label("", EditorStyles.boldLabel);
+
+
                 if (GUILayout.Button("Update Officer Data", GUILayout.MinWidth(Screen.width/3)))
                 {
                     switch (format)
@@ -127,10 +156,9 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                         case dataType.csv:
                             parseCSV();
                             break;
-                            /*
-                        case dataType.json:
-                            parseJSON();
-                            break;*/
+                        case dataType.stringLoading:
+                            accountManager.RemoteDataURL = new VRC.SDKBase.VRCUrl(RemoteDataSheetURL);
+                            break;
                     }
                     UpdateCustomLists();
                 }
@@ -389,6 +417,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                 Debug.LogError("<color=navy><b>Account Manager:</b></color> No data sheet provided.");
             }
         }
+
         private void parseJSON()
         {
             Debug.Log("<color=navy><b>Account Manager:</b></color> JSON is not supported yet :c");
