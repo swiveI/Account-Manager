@@ -37,6 +37,12 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         bool initilized =  false;
         private Vector2 scroll;
 
+        private Texture2D twitterLogo;
+        private Texture2D discordLogo;
+        private Texture2D youtubeLogo;
+        private Texture2D kofiLogo;
+        
+        
         private const string DatasheetKeyPath = "LPD/AccountManager/DatasheetAsstetPath";
         enum dataType {csv};
         enum mode {Replace, Add}
@@ -54,6 +60,10 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         private void OnEnable()
         {
             HeaderTexture = (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/TITLEBAR.png", typeof(Texture2D));
+            twitterLogo = (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/SocialLogos/TwitterLogo.png", typeof(Texture2D));
+            discordLogo = (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/SocialLogos/DiscordLogo.png", typeof(Texture2D));
+            youtubeLogo = (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/SocialLogos/YoutubeLogo.png", typeof(Texture2D));
+            kofiLogo = (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/SocialLogos/KofiLogo.png", typeof(Texture2D));
 
             accountManager = FindBehaviourOfType<OfficerAccountManager>();
             if (EditorPrefs.HasKey(DatasheetKeyPath))
@@ -240,14 +250,22 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                 }
             }
             GUILayout.BeginArea(new Rect(0, Screen.height - 43f, Screen.width, 25f));
-            using (new GUILayout.HorizontalScope(EditorStyles.helpBox))
+            using (new GUILayout.HorizontalScope())
             {
-                if (GUILayout.Button(new GUIContent("Discord"), EditorStyles.miniButtonMid, GUILayout.Width(Screen.width / 4), GUILayout.Height(43))) Application.OpenURL("https://discord.gg/lpd");
-                if (GUILayout.Button(new GUIContent("Twitter"), EditorStyles.miniButtonMid, GUILayout.Width(Screen.width / 4), GUILayout.Height(43))) Application.OpenURL("https://twitter.com/LPD_vrchat");
-                if (GUILayout.Button(new GUIContent("Youtube"), EditorStyles.miniButtonMid, GUILayout.Width(Screen.width / 4), GUILayout.Height(43))) Application.OpenURL("https://www.youtube.com/c/LoliPoliceDepartment");
-                if (GUILayout.Button(new GUIContent("Patreon"), EditorStyles.miniButtonMid, GUILayout.Width(Screen.width / 4), GUILayout.Height(43))) Application.OpenURL("https://www.patreon.com/Karet");
+                GUI.color = Color.white;
+                GUI.backgroundColor = Color.white;
+                
+                GUI.backgroundColor = new Color(0.4509804f, 0.5411765f, 0.8588236f, 1f);
+                if (GUILayout.Button(new GUIContent(discordLogo, "Discord"), EditorStyles.miniButtonMid, GUILayout.Width(Screen.width / 4), GUILayout.Height(60))) Application.OpenURL("https://discord.gg/lpd");
+                GUI.backgroundColor = new Color(0.1137255f, .6313726f, 0.9490196f, 1f);
+                if (GUILayout.Button(new GUIContent(twitterLogo, "Twitter"), EditorStyles.miniButtonMid, GUILayout.Width(Screen.width / 4), GUILayout.Height(60))) Application.OpenURL("https://twitter.com/LPD_vrchat");
+                GUI.backgroundColor = new Color(0.8039216f, 0.1254902f, 0.1215686f, 1f);
+                if (GUILayout.Button(new GUIContent(youtubeLogo, "Youtube"), EditorStyles.miniButtonMid, GUILayout.Width(Screen.width / 4), GUILayout.Height(60))) Application.OpenURL("https://www.youtube.com/c/LoliPoliceDepartment");
+                GUI.backgroundColor = new Color(1f, 0.3137255f, 0.3137255f, 1f);
+                if (GUILayout.Button(new GUIContent(kofiLogo, "Ko-fi"), EditorStyles.miniButtonMid, GUILayout.Width(Screen.width / 4), GUILayout.Height(60))) Application.OpenURL("https://ko-fi.com/lolipolicedepartment");
             }
             GUILayout.EndArea();
+            GUI.backgroundColor = Color.white;
         }
 
         public void CreateCustomList(int listName, string listValue)
