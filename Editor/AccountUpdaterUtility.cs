@@ -346,7 +346,27 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
 
                 for (int index = 0; index < dataLines.Count; index++)
                 {
-                    List<string> accountData = new List<string>(dataLines[index].Split('\u002C'));
+                    string[] splitData = dataLines[index].Split('\u002C');
+                    if (splitData.Length != dataColumns.Count)
+                    {
+                        int columnCount = dataColumns.Count;
+                        int dataCount = splitData.Length;
+                        
+                        dataCount = Mathf.Clamp(dataCount, dataCount, columnCount);
+                        
+                        string[] correctedData = new string[columnCount];
+                        for (int i = 0; i < dataCount; i++)
+                        {
+                            correctedData[i] = splitData[i];
+                        }
+                        for (int i = splitData.Length; i < columnCount; i++)
+                        {
+                            correctedData[i] = "";
+                        }
+                        splitData = correctedData;
+                    }
+                    
+                    List<string> accountData = new List<string>(splitData);
                     accountData.Insert(0, index.ToString());
                     //accountData.Last().Trim();
                     dataset[index] = accountData.ToArray(); 
