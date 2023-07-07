@@ -335,8 +335,10 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
 
                 //remove the first line
                 dataLines.RemoveAt(0);
-                //remove the last line because csv
-                dataLines.RemoveAt(dataLines.Count - 1);
+                
+                //remove empty lines
+                dataLines.RemoveAll(string.IsNullOrEmpty);
+                
                 dataLines.Sort();
 
                 //create dataset
@@ -346,7 +348,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                 {
                     List<string> accountData = new List<string>(dataLines[index].Split('\u002C'));
                     accountData.Insert(0, index.ToString());
-                    accountData.Last().Trim();
+                    //accountData.Last().Trim();
                     dataset[index] = accountData.ToArray(); 
                 }
                 if (datamode == mode.Replace)
