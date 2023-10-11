@@ -61,6 +61,13 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         #region Variables
         
         /// <summary>
+        /// Log the performance of raw data parsing, _CreateRoleList, and _CreateFilteredRoleList 
+        /// </summary>
+        [SerializeField] private bool performanceLogging = true;
+        /// <inheritdoc cref="OfficerAccountManager.performanceLogging"/>
+        private System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
+
+        /// <summary>
         /// The raw data representing all of the officers.
         /// Editor/Offline data is stored here and is overwritten by Internet data if any is downloaded at runtime.
         /// </summary>
@@ -236,6 +243,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         private void DataReady()
         {
             //Parse whatever data is available
+            if (performanceLogging) stopwatch.Start();
             if (dataFormat == DataFormat.CSV)
             {
                 //Parse the CSV file
@@ -245,6 +253,11 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
             {
                 //Parse the JSON file
                 ParseJSON(rawOfficerData);
+            }
+
+            if (performanceLogging) {
+                stopwatch.Stop();
+                _Log("Parsing took " + stopwatch.ElapsedMilliseconds + "ms", this);
             }
 
             //Success
@@ -387,6 +400,8 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         /// <returns>A dictionary of officer names and their corresponding role values for the given role name.</returns>
         public DataDictionary _CreateRoleList(string roleName)
         {
+            if (performanceLogging) stopwatch.Start();
+
             DataDictionary roleList = new DataDictionary();
             DataList keys = nameToRankDictionary.GetKeys();
             for (int i = 0; i < keys.Count; i++)
@@ -397,6 +412,12 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                     roleList.Add(keys[i], value);
                 }
             }
+
+            if (performanceLogging) {
+                stopwatch.Stop();
+                _Log("Creating role list took " + stopwatch.ElapsedMilliseconds + "ms", this);
+            }
+
             return roleList;
         }
         
@@ -409,6 +430,8 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         /// <returns>A DataDictionary containing the filtered list of officers.</returns>
         public DataDictionary _CreateFilteredRoleList(string roleName, Comparator comparator, DataToken token)
         {
+            if (performanceLogging) stopwatch.Start();
+
             DataDictionary staffDictionary = _CreateFilteredRoleList("Staff", Comparator.EqualTo, "true");
 
             DataDictionary roleList = new DataDictionary();
@@ -468,6 +491,11 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                     break;
             }
             
+            if (performanceLogging) {
+                stopwatch.Stop();
+                _Log("Creating filtered role list took " + stopwatch.ElapsedMilliseconds + "ms", this);
+            }
+
             return roleList;
         }
         #endregion
