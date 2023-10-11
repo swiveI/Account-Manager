@@ -511,26 +511,62 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
          *   int: 0
          *   float: 0
          */
+
         //String
         /// <summary>See <see cref="OfficerAccountManager._GetToken"/>. Default value is "" if the officer or role doesn't exist.</summary>
-        public string _GetString(string officerName, string roleName) => _GetToken(officerName, roleName, "").String;
+        public string _GetString(string officerName, string roleName)
+        {
+            //No parsing needed
+            return _GetToken(officerName, roleName, "").String;
+        }
         /// <summary>See <see cref="OfficerAccountManager._GetToken"/>. Default value is "" if the officer or role doesn't exist.</summary>
-        public string _GetString(string roleName) => _GetLocalPlayerToken(roleName, "").String;
+        public string _GetString(string roleName) => _GetString(Networking.LocalPlayer.displayName, roleName);
+
         //Bool
         /// <summary>See <see cref="OfficerAccountManager._GetToken"/>. Default value is false if the officer or role doesn't exist.</summary>
-        public bool _GetBool(string officerName, string roleName) => _GetToken(officerName, roleName, false).Boolean;
+        public bool _GetBool(string officerName, string roleName)
+        {
+            string value = _GetToken(officerName, roleName, bool.FalseString).String;
+            bool success = bool.TryParse(value, out bool result);
+            if (!success)
+            {
+                _LogWarning("Failed to parse bool for officer \"" + officerName + "\" and role \"" + roleName + "\"", this);
+                return false;
+            }
+            return result;
+        }
         /// <summary>See <see cref="OfficerAccountManager._GetToken"/>. Default value is false if the officer or role doesn't exist.</summary>
-        public bool _GetBool(string roleName) => _GetLocalPlayerToken(roleName, false).Boolean;
+        public bool _GetBool(string roleName) => _GetBool(Networking.LocalPlayer.displayName, roleName);
         //Int
         /// <summary>See <see cref="OfficerAccountManager._GetToken"/>. Default value is 0 if the officer or role doesn't exist.</summary>
-        public int _GetInt(string officerName, string roleName) => _GetToken(officerName, roleName, 0).Int;
+        public int _GetInt(string officerName, string roleName)
+        {
+            string value = _GetToken(officerName, roleName, "0").String;
+            bool success = int.TryParse(value, out int result);
+            if (!success)
+            {
+                _LogWarning("Failed to parse int for officer \"" + officerName + "\" and role \"" + roleName + "\"", this);
+                return 0;
+            }
+            return result;
+        }
         /// <summary>See <see cref="OfficerAccountManager._GetToken"/>. Default value is 0 if the officer or role doesn't exist.</summary>
-        public int _GetInt(string roleName) => _GetLocalPlayerToken(roleName, 0).Int;
+        public int _GetInt(string roleName) => _GetInt(Networking.LocalPlayer.displayName, roleName);
         //Float
         /// <summary>See <see cref="OfficerAccountManager._GetToken"/>. Default value is 0 if the officer or role doesn't exist.</summary>
-        public float _GetFloat(string officerName, string roleName) => _GetToken(officerName, roleName, 0f).Float;
+        public float _GetFloat(string officerName, string roleName) 
+        {
+            string value = _GetToken(officerName, roleName, "0").String;
+            bool success = float.TryParse(value, out float result);
+            if (!success)
+            {
+                _LogWarning("Failed to parse float for officer \"" + officerName + "\" and role \"" + roleName + "\"", this);
+                return 0f;
+            }
+            return result;
+        }
         /// <summary>See <see cref="OfficerAccountManager._GetToken"/>. Default value is 0 if the officer or role doesn't exist.</summary>
-        public float _GetFloat(string roleName) => _GetLocalPlayerToken(roleName, 0f).Float;
+        public float _GetFloat(string roleName) => _GetFloat(Networking.LocalPlayer.displayName, roleName);
         #endregion
 
 
