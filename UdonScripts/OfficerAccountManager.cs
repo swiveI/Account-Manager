@@ -1,304 +1,481 @@
-﻿// Account manager is a tool for converting spreadsheet data, via csv, into arrays for easy access by udonbehavours within VRChat.
-// Copyright (C) 2022 Adam Thomas
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-using UdonSharp;
+﻿using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
 using VRC.Udon;
 using System;
 using VRC.SDK3.StringLoading;
+using VRC.SDK3.Data;
 
 namespace LoliPoliceDepartment.Utilities.AccountManager
 {
+    /// <summary>
+    /// The source of data for the account manager.
+    /// </summary>
     public enum DataSource
     {
-        Local = 0,
-        Network = 1
+        Editor = 0,
+        Internet = 1
     }
+    
+    /// <summary>
+    /// The expcted data format for parsing.
+    /// </summary>
+    public enum DataFormat
+    {
+        CSV = 0,
+        JSON = 1
+    }
+
+    /// <summary>
+    /// Represents the comparison operators that can be used for filtering generated role lists.
+    /// </summary>
+    public enum Comparator
+    {
+        EqualTo = 0,
+        NotEqualTo = 1,
+        GreaterThan = 2,
+        LessThan = 3,
+        GreaterThanOrEqualTo = 4,
+        LessThanOrEqualTo = 5
+    }
+
+    /// <summary>
+    /// Manages officer account data, including loading and parsing data from a remote source.
+    /// </summary>
     public class OfficerAccountManager : UdonSharpBehaviour
     {
-        //NOTE:
-        //For the most efficient runtime performance call Officerdata[int OfficerID][int RoleID]
-        //or call the _Get functions using int OfficerID and int RoleID. String lookups are slow
-        //but extremely convenient when you only need to do it a few times. You can speed up
-        //string lookups by caching the result of _IDLookup(string name) or _RoleLookup(string name)
-        //but this is not necessary unless you are doing it a lot.
-
-        //To look up data for the local officer, use _GetString(role)
-        //To look up someone else, use _GetString(officer, role)
-        //_GetBool(), _GetInt(), and _GetFloat() work the same way
+        //-------------------------Notes-------------------------//
+        #region Notes
+        //PLEASE NOTE ALL OFFICERS HAVE ALL ROLES IF THIS IS A CSV FILE
+        //If you want a list of staff but are using CSV, please run _CreateFilteredRoleList("Staff", Comparator.EqualTo, "true")
 
         //Default return values for _Get functions if the officer or role is not found:
         //string: ""
         //bool: false
         //int: 0
         //float: 0
+        #endregion
+
+
+        //-------------------------Variables-------------------------//
+        #region Variables
         
-        //Are we ready to perform lookups? (i.e. Are we waiting for a web server to respond with our data?)
-        public bool isInitialized { get; private set; } = false;
-        public bool initializedSuccessfully { get; private set; } = true; //Set to false if initialization fails
-        public DataSource dataSource = DataSource.Local;
-        [SerializeField] public VRCUrl RemoteDataURL = VRCUrl.Empty;
-        [SerializeField] public string[] RoleNames;
-        [SerializeField] public string[][] OfficerData;
-        [SerializeField] public int[][] CustomLists;
-        [SerializeField] public UdonEvent OnInitializedListeners;
-       
-        //LocalOfficerID (resolves on-demand rather than on start to avoid race conditions, can be called immediately)
-        private int _LocalOfficerID = -2; //Uninitialized
-        public int LocalOfficerID
+        /// <summary>
+        /// The raw data representing all of the officers.
+        /// Editor/Offline data is stored here and is overwritten by Internet data if any is downloaded at runtime.
+        /// </summary>
+        [SerializeField, HideInInspector] public string rawOfficerData = "";
+        
+        /// <summary>
+        /// The URL for online officer data.
+        /// If users have Untrusted URLs disabled then only the following sources are valid:
+        /// <list type="bullet">
+        ///     <item>GitHub (*.github.io)</item>
+        ///     <item>Pastebin (pastebin.com)</item>
+        ///     <item>Github Gist (gist.githubusercontent.com)</item>
+        /// </list>
+        /// See <see href="https://creators.vrchat.com/worlds/udon/string-loading/">the official VRChat documentation</see> for more information.
+        /// </summary>
+        [SerializeField] private VRCUrl RemoteDataURL = VRCUrl.Empty;
+
+        /// <summary>
+        /// The preferred location for fetching account data.
+        /// </summary>
+        [SerializeField] public DataSource desiredDataSource { get; private set; } = DataSource.Editor;
+
+        /// <summary>
+        /// The locaton of the data that is currently loaded.
+        /// </summary>
+        [NonSerialized, HideInInspector] public DataSource currentDataSource = DataSource.Editor;
+
+        /// <summary>
+        /// The expected format of the data for parsing.
+        /// </summary>
+        [SerializeField] public DataFormat dataFormat = DataFormat.CSV;
+        
+        /// <summary>
+        /// A value indicating whether the <see cref="OfficerAccountManager"/> is ready to be used.
+        /// </summary>
+        public bool isReady { get; private set; } = false;
+
+        /// <summary>
+        /// A value for tracking whether the <see cref="OfficerAccountManager"/> is currently busy initializing.
+        /// A false value does not necessarily mean that the <see cref="OfficerAccountManager"/> is ready to be used.
+        /// </summary>
+        public bool isInitializing { get; private set; } = false;
+
+        /// <summary>
+        /// Indicates whether the <see cref="OfficerAccountManager"/> was initialized successfully.
+        /// </summary>
+        public bool initializedSuccessfully { get; private set; } = false;
+
+        /// <summary>
+        /// A dictionary of UdonBehaviors who wish to be notified when the <see cref="OfficerAccountManager"/> has finished initializing.
+        /// Keys are typ <see cref="UdonBehavior"/>, values are the string function names to call on each <see cref="UdonBehavior"/> when the data is ready.
+        /// </summary>
+        [NonSerialized] private DataDictionary OnInitializedListeners = new DataDictionary(); //Dictionary of UdonBehaviors and their String function names to be called when the data is ready
+
+        /// <summary>
+        /// A dictionary mapping officer names to their role dictionaries.
+        /// </summary>
+        [NonSerialized] public DataDictionary nameToRankDictionary = new DataDictionary();
+        #endregion       
+
+
+
+        //-------------------------Initialization Functions-------------------------//
+        #region Initialization
+        /// <summary>
+        /// Allow <see cref="UdonBehaviour"/> instances to be notified when the <see cref="OfficerAccountManager"/> has finished initializing.
+        /// </summary>
+        /// <param name="behaviour">The <see cref="UdonBehaviour"/> to notify.</param>
+        /// <param name="functionName">The name of the function to call when the <see cref="OfficerAccountManager"/> has finished initializing.</param>
+        public void NotifyWhenInitialized(UdonBehaviour behaviour, string functionName)
         {
-            get
+            //If we are already initialized, send the event immediately
+            if (isReady)
             {
-                if (_LocalOfficerID == -2) //Initialize
-                {
-                    _LocalOfficerID = -1; //Default to -1 "not found"
-                    if (OfficerData.Length == 0)
-                    {
-                        Debug.LogError("Officer Account Manager: OfficerData is empty, please update the " +
-                            "officer list using the LPD -> AccountManager window", this);
-                        return -1;
-                    }
-                    _LocalOfficerID = _IDLookup(Networking.LocalPlayer.displayName);
-                }
-                return _LocalOfficerID;
+                //Send it immediately
+                behaviour.SendCustomEvent(functionName);
+                return;
             }
 
-            private set
+            //Subscribe
+            if (!OnInitializedListeners.ContainsKey(behaviour))
             {
-                _LocalOfficerID = value;
+                OnInitializedListeners.Add(behaviour, functionName);
             }
-        }
-
-        private void Awake() {
-            //Setup if using local data
-            if (dataSource == DataSource.Local)
+            //No duplicates pls thx
+            else
             {
-                isInitialized = true;
-                OnInitializedListeners.SendCustomEvent("OnInitialized");
+                _LogWarning(behaviour.name + " attempted to subscribe to the initialized event, but it was already subscribed", behaviour);
+                return;
             }
         }
 
-        private void Start() {
-            //Setup if using remote data
-            if (dataSource == DataSource.Network)
-            {
-                //Request data from the web server
-                VRCStringDownloader.LoadUrl(RemoteDataURL, (VRC.Udon.Common.Interfaces.IUdonEventReceiver) this);
-            }
-        }
-
-        //Allows UdonBehaviors to be notified when the data is ready
-        public void NotifyWhenInitialized(UdonBehaviour receiver, string eventName)
+        /// <summary>
+        /// Removes a UdonBehaviour from the list of listeners that will be notified when the OfficerAccountManager is initialized.
+        /// </summary>
+        /// <param name="behaviour">The UdonBehaviour to remove from the listener list.</param>
+        public void RemoveListener(UdonBehaviour behaviour)
         {
-            if (isInitialized)
+            if (OnInitializedListeners.ContainsKey(behaviour))
             {
-                //Wait a frame so people can count on this not occuring instantly
-                receiver.SendCustomEventDelayedFrames(eventName, 1);
+                OnInitializedListeners.Remove(behaviour);
             }
             else
             {
-                //Add the receiver to the list of listeners
-                OnInitializedListeners.AddReceiver(receiver, eventName);
+                _LogWarning("Attempted to remove " + behaviour.name + " from the listener list, but it was not in the list", behaviour);
             }
         }
 
-        //Callback for when the web server responds with our data
-        public override void OnStringLoadSuccess(IVRCStringDownload result) => ParseCSV(result.Result);
-        public override void OnStringLoadError(IVRCStringDownload result) {
-            isInitialized = true;
+        /// <summary>
+        /// Calls Initialize() on start. Initialize is basically <inheritdoc cref="OfficerAccountManager.Initialize"/>
+        /// </summary>
+        private void Start() => Initialize();
+        /// <summary>
+        /// Start but public. Safe to call multiple times if initialization fails.
+        /// </summary>
+        public void Initialize() {
+            if (isInitializing)
+            {
+                _LogWarning("Initialize was called while the account manager is already initializing", this);
+                return;
+            }
+            isInitializing = true;
+            isReady = false;
             initializedSuccessfully = false;
-            //Let everybody know we tried
-            OnInitializedListeners.Trigger();
-            Debug.Log("Officer Account Manager: Failed to load data from " + RemoteDataURL.Get());
+            //Setup
+            switch(desiredDataSource)
+            {
+                case DataSource.Editor:
+                    //We are using offline data, it is already ready
+                    _Log("Using offline data", this);
+                    currentDataSource = DataSource.Editor;
+                    initializedSuccessfully = true;
+                    DataReady();
+                    break;
+
+                case DataSource.Internet:
+                    //Request data from the web server
+                    _Log("Fetching officer data from " + RemoteDataURL.Get(), this);
+                    // currentDataSource = DataSource.Local; //Set later depending on whether the request succeeds
+                    VRCStringDownloader.LoadUrl(RemoteDataURL, (VRC.Udon.Common.Interfaces.IUdonEventReceiver) this);
+                    break;
+            }
         }
 
-        //Parse the CSV file
+        /// <summary>
+        /// Called by VRChat after attempting to download officer data from the internet. Please do not call this function manually.
+        /// See <see href="https://creators.vrchat.com/worlds/udon/string-loading/">the official VRChat documentation</see> for more information.
+        /// </summary>
+        /// <param name="result">The raw account data downloaded from the web server.</param>
+        public override void OnStringLoadSuccess(IVRCStringDownload result)
+        {
+            //Overwrite the offline data and continue initializing
+            rawOfficerData = result.Result;
+            _Log("Officer data downloaded successfully", this);
+            currentDataSource = DataSource.Internet;
+            initializedSuccessfully = true;
+            DataReady();
+        }
+
+        /// <inheritdoc cref="OfficerAccountManager.OnStringLoadSuccess"/>
+        public override void OnStringLoadError(IVRCStringDownload result)
+        {
+            //Use offline data
+            _LogWarning("Failed to download officer data, using offline data", this);
+            currentDataSource = DataSource.Editor;
+            initializedSuccessfully = false;
+            DataReady();
+        }
+
+        /// <summary>
+        /// Callback method that is called when the data has been successfully retrieved and is ready to be parsed.
+        /// </summary>
+        private void DataReady()
+        {
+            //Parse whatever data is available
+            if (dataFormat == DataFormat.CSV)
+            {
+                //Parse the CSV file
+                ParseCSV(rawOfficerData);
+            }
+            else if (dataFormat == DataFormat.JSON)
+            {
+                //Parse the JSON file
+                ParseJSON(rawOfficerData);
+            }
+
+            //Success
+            isInitializing = false;
+            isReady = true;
+
+            //Notify subscribers
+            DataList keys = OnInitializedListeners.GetKeys();
+            for (int i = 0; i < keys.Count; i++)
+            {
+                UdonBehaviour receiver = (UdonBehaviour)keys[i].Reference;
+                string eventName = OnInitializedListeners[keys[i]].ToString();
+                receiver.SendCustomEvent(eventName);
+            }
+        }
+
+        /// <summary>
+        /// Parse the CSV file
+        /// </summary>
+        /// <param name="csv">The CSV file to parse.</param>
         public void ParseCSV(string csv)
         {
-            // List<string> dataLines = new List<string>(text.Split('\n'));
-            // List<string> dataColumns = new List<string>(dataLines[0].Split('\u002C'));
-            string dataLinesString = csv;
-            string dataColumnsString = dataLinesString.Substring(0, dataLinesString.IndexOf('\n'));
-
-            // dataColumns.Insert(0, "ID");
-            dataColumnsString = "ID" + '\u002C' + dataColumnsString;
-
-            //remove the first line
-            // dataLines.RemoveAt(0);
-            dataLinesString = dataLinesString.Substring(dataLinesString.IndexOf('\n') + 1);
-            
-            //remove empty lines
-            // dataLines.RemoveAll(string.IsNullOrEmpty);
-            string[] dataLines = dataLinesString.Split('\n');
-            bool[] emptyLines = new bool[dataLines.Length];
-            int emptyLineCount = 0;
-            for(int i = 0; i < dataLines.Length; i++)
-            {
-                if (string.IsNullOrEmpty(dataLines[i]))
-                {
-                    emptyLines[i] = true;
-                    emptyLineCount++;
-                }
-            }
-            //Copy only non-empty lines
-            string[] newDataLines = new string[dataLines.Length - emptyLineCount];
-            int newDataLinesIndex = 0;
-            for (int i = 0; i < dataLines.Length; i++)
-            {
-                if (!emptyLines[i])
-                {
-                    newDataLines[newDataLinesIndex] = dataLines[i];
-                    newDataLinesIndex++;
-                }
-            }
-            dataLines = newDataLines;
-            string[] dataColumns = dataColumnsString.Split('\u002C');
-            
-            // dataLines.Sort();
-            Chanoler.Utility.ChanArray.Sort(dataLines);
-
-            //create dataset
-            string[][] dataset = new string[dataLines.Length][];
-
-            for (int index = 0; index < dataLines.Length; index++)
-            {
-                string[] splitData = dataLines[index].Split('\u002C');
-                if (splitData.Length != dataColumns.Length)
-                {
-                    int columnCount = dataColumns.Length;
-                    int dataCount = splitData.Length;
-                    
-                    dataCount = Mathf.Clamp(dataCount, dataCount, columnCount);
-                    
-                    string[] correctedData = new string[columnCount];
-                    for (int i = 0; i < dataCount; i++)
-                    {
-                        correctedData[i] = splitData[i];
-                    }
-                    for (int i = splitData.Length; i < columnCount; i++)
-                    {
-                        correctedData[i] = "";
-                    }
-                    splitData = correctedData;
-                }
-                
-                string[] accountData = splitData;
-                // accountData.Insert(0, index.ToString());
-                string[] newAccountData = new string[accountData.Length + 1];
-                newAccountData[0] = index.ToString();
-                for (int i = 0; i < accountData.Length; i++)
-                {
-                    newAccountData[i + 1] = accountData[i];
-                }
-                accountData = newAccountData;
-                
-                //accountData.Last().Trim();
-
-                dataset[index] = accountData; 
-            }
-            this.OfficerData = dataset;
-            this.RoleNames = dataColumns;
-            // officerdata.DataTitles = dataColumns; //Idk what this does so I'm commenting it out for now
-            Debug.Log("<color=navy><b>Account Manager:</b></color> parsed " + dataSource + " data for " + OfficerData.Length + " users");
-
-            isInitialized = true;
-            initializedSuccessfully = true;
-            OnInitializedListeners.Trigger();
+            // Karet's problem
         }
 
-        //Look up an officer's ID by name
-        //return -1 if not found
-        public int _IDLookup(string name)
+        /// <summary>
+        /// Parse the JSON file
+        /// </summary>
+        /// <param name="json">The JSON file to parse.</param>
+        public void ParseJSON(string json)
         {
-            int low = 0;
-            int high = OfficerData.Length - 1;
-
-            while(low <= high)
-            {
-                int mid = (low + high) / 2;
-                int compare = name.CompareTo(OfficerData[mid][1]);
-                //Debug.Log("Officer Account Manager: comparing name " + name + " to officerList " + mid + " " + OfficerList[mid][0] + " returns " + compare);
-
-                if (compare == 0)
-                {
-                    Debug.Log("Account Manager: Officer ID " + OfficerData[mid][0] + " for user " + name + " was found");
-                    return Int32.Parse(OfficerData[mid][0]);
-                }
-
-                if (compare > 0)
-                {
-                    low = mid + 1;
-                }
-                else
-                {
-                    high = mid - 1;
-                }
-            }
-            Debug.LogWarning("Account Manager: User \"" + name + "\" is not in the officer database, they will be treated as ID=-1, name=\"null\"", this);
-            return -1;
+            // Karet's problem
         }
+        #endregion
 
-        //Look up a role's index by its name
-        //return -1 if not found
-        //Note: Roles are not sorted, so this is a linear search
-        public int _RoleLookup(string roleName)
-        {
-            //Linear search, too lazy, not sorted
-            for (int i = 0; i < RoleNames.Length; i++)
-            {
-                if (RoleNames[i] == roleName)
-                {
-                    return i;
-                }
-            }
-            Debug.LogWarning("Account Manager: Role " + roleName + " was not found", this);
-            return -1;
-        }
 
-        //Return whether the specified player is an officer
+        //-------------------------Getters-------------------------//
+        #region Getters
+        /// <summary>
+        /// Determines if the given player is an officer based on their display name.
+        /// </summary>
+        /// <param name="player">The player to check.</param>
+        /// <param name="name">The display name of the officer.</param>
+        /// <returns>True if the player is an officer, false otherwise.</returns>
         public bool _IsOfficer(string name)
         {
-            return _IDLookup(name) != -1;
+            return nameToRankDictionary.TryGetValue(name, out DataToken dont_care);
         }
+
+        /// <inheritdoc cref="OfficerAccountManager._IsOfficer"/>
         public bool _IsOfficer(VRCPlayerApi player)
         {
             return _IsOfficer(player.displayName);
         }
+
+        /// <inheritdoc cref="OfficerAccountManager._IsOfficer"/>
         public bool _IsLocalPlayerOfficer()
         {
-            return LocalOfficerID != -1;
+            return _IsOfficer(Networking.LocalPlayer.displayName);
         }
 
 
-        //Main function for getting values
-        public string _GetString(int officerID, int roleIndex)
+
+        //Main function for getting values. Only returns DataTokens which can be converted to strings, bools, ints, and floats.
+        /// <summary>
+        /// Gets the data token for the specified player and role with an optional default value.
+        /// See <see href="https://creators.vrchat.com/worlds/udon/data-containers/data-tokens/">the official VRChat documentation</see>
+        /// for more information on the <see cref="DataToken"/> class.
+        /// </summary>
+        /// <param name="player">The player to get the data token for.</param>
+        /// <param name="displayName">The display name of the officer.</param>
+        /// <param name="role">The role associated with the data token.</param>
+        /// <param name="defaultValue">The default value to return if no data token is found.</param>
+        /// <returns>The data token for the specified player and role, or the default value if no data token is found.</returns>
+        /// <inheritdoc cref="OfficerAccountManager._GetLocalPlayerToken"/>
+        public DataToken _GetToken(string displayName, string role, DataToken defaultValue = new DataToken())
         {
-            if (officerID < 0 || officerID >= OfficerData.Length)
+            bool found = nameToRankDictionary.TryGetValue(displayName, out DataToken officerRoles);
+            if (!found)
             {
-                Debug.LogWarning("Account Manager: Officer ID " + officerID + " is out of range", this);
-                return "";
+                _LogWarning("Officer \"" + displayName + "\" not found", this);
+                return DataError.KeyDoesNotExist;
             }
-            if (roleIndex < 0 || roleIndex >= OfficerData[0].Length)
-            {
-                Debug.LogWarning("Account Manager: Role index " + roleIndex + " is out of range", this);
-                return "";
-            }
-            return OfficerData[officerID][roleIndex];
-        }
 
+            found = officerRoles.DataDictionary.TryGetValue(role, out DataToken value);
+            if (!found)
+            {
+                _LogWarning("Role \"" + role + "\" not found for officer \"" + displayName + "\"", this);
+                return DataError.KeyDoesNotExist;
+            }
+
+            return value;
+        }
+        /// <inheritdoc cref="OfficerAccountManager._GetToken"/>
+        public DataToken _GetToken(VRCPlayerApi player, string role, DataToken defaultValue = new DataToken()) => _GetToken(player.displayName, role, defaultValue);
+        /// <inheritdoc cref="OfficerAccountManager._GetToken"/>
+        public DataToken _GetLocalPlayerToken(string role, DataToken defaultValue = new DataToken()) => _GetToken(Networking.LocalPlayer.displayName, role, defaultValue);
+        
+
+        
+        /// <summary>
+        /// Attempts to retrieve the data token associated with the specified officer and role.
+        /// See <see href="https://creators.vrchat.com/worlds/udon/data-containers/data-tokens/">the official VRChat documentation</see>
+        /// for more information on the <see cref="DataToken"/> class.
+        /// </summary>
+        /// <param name="player">The player to get the data token for.</param>
+        /// <param name="displayName">The display name of the officer.</param>
+        /// <param name="role">The role of the officer.</param>
+        /// <param name="value">The data token for the officer's display name and role.</param>
+        /// <returns>True if the data token was found, false otherwise.</returns>
+        public bool _TryGetToken(string displayName, string role, out DataToken value)
+        {
+            bool found = nameToRankDictionary.TryGetValue(displayName, out DataToken officerRoles);
+            if (!found)
+            {
+                value = DataError.KeyDoesNotExist;
+                return false;
+            }
+
+            found = officerRoles.DataDictionary.TryGetValue(role, out value);
+            if (!found)
+            {
+                value = DataError.KeyDoesNotExist;
+                return false;
+            }
+
+            return true;
+        }
+        /// <inheritdoc cref="OfficerAccountManager._TryGetToken"/>
+        public bool _TryGetLocalPlayerToken(string role, out DataToken value) => _TryGetToken(Networking.LocalPlayer.displayName, role, out value);
+        /// <inheritdoc cref="OfficerAccountManager._TryGetToken"/>
+        public bool _TryGetToken(VRCPlayerApi player, string role, out DataToken value) => _TryGetToken(player.displayName, role, out value);
+
+
+
+        /// <summary>
+        /// Creates a dictionary of officer names to values for a given role name. Please do not call this function every frame.
+        /// </summary>
+        /// <param name="roleName">The name of the role to filter by.</param>
+        /// <returns>A dictionary of officer names and their corresponding role values for the given role name.</returns>
+        public DataDictionary _CreateRoleList(string roleName)
+        {
+            DataDictionary roleList = new DataDictionary();
+            DataList keys = nameToRankDictionary.GetKeys();
+            for (int i = 0; i < keys.Count; i++)
+            {
+                DataToken officerRoles = nameToRankDictionary[keys[i]];
+                if (officerRoles.DataDictionary.TryGetValue(roleName, out DataToken value))
+                {
+                    roleList.Add(keys[i], value);
+                }
+            }
+            return roleList;
+        }
+        
+        /// <summary>
+        /// Creates a filtered list of officers whose value for a given role passes the specified test. Please do not call this function every frame.
+        /// </summary>
+        /// <param name="roleName">The name of the role to filter by.</param>
+        /// <param name="comparator">The comparator to use for filtering.</param>
+        /// <param name="token">The token to compare against.</param>
+        /// <returns>A DataDictionary containing the filtered list of officers.</returns>
+        public DataDictionary _CreateFilteredRoleList(string roleName, Comparator comparator, DataToken token)
+        {
+            DataDictionary staffDictionary = _CreateFilteredRoleList("Staff", Comparator.EqualTo, "true");
+
+            DataDictionary roleList = new DataDictionary();
+            DataList keys = nameToRankDictionary.GetKeys();
+
+            //I am so sorry for this abomination
+            switch (comparator)
+            {
+                case Comparator.EqualTo:
+                    for (int i = 0; i < keys.Count; i++) {
+                        DataToken officerRoles = nameToRankDictionary[keys[i]];
+                        if (officerRoles.DataDictionary.TryGetValue(roleName, out DataToken value)) {
+                            if (value.Equals(token)) roleList.Add(keys[i], value);
+                        }
+                    }
+                    break;
+                case Comparator.NotEqualTo:
+                    for (int i = 0; i < keys.Count; i++) {
+                        DataToken officerRoles = nameToRankDictionary[keys[i]];
+                        if (officerRoles.DataDictionary.TryGetValue(roleName, out DataToken value)) {
+                            int compare = value.CompareTo(token);
+                            if (!value.Equals(token)) roleList.Add(keys[i], value);
+                        }
+                    }
+                    break;
+                case Comparator.GreaterThan:
+                    for (int i = 0; i < keys.Count; i++) {
+                        DataToken officerRoles = nameToRankDictionary[keys[i]];
+                        if (officerRoles.DataDictionary.TryGetValue(roleName, out DataToken value)) {
+                            if (value.CompareTo(token) > 0) roleList.Add(keys[i], value);
+                        }
+                    }
+                    break;
+                case Comparator.LessThan:
+                    for (int i = 0; i < keys.Count; i++) {
+                        DataToken officerRoles = nameToRankDictionary[keys[i]];
+                        if (officerRoles.DataDictionary.TryGetValue(roleName, out DataToken value)) {
+                            if (value.CompareTo(token) < 0) roleList.Add(keys[i], value);
+                        }
+                    }
+                    break;
+                case Comparator.GreaterThanOrEqualTo:
+                    for (int i = 0; i < keys.Count; i++) {
+                        DataToken officerRoles = nameToRankDictionary[keys[i]];
+                        if (officerRoles.DataDictionary.TryGetValue(roleName, out DataToken value)) {
+                            if (value.CompareTo(token) >= 0) roleList.Add(keys[i], value);
+                        }
+                    }
+                    break;
+                case Comparator.LessThanOrEqualTo:
+                    for (int i = 0; i < keys.Count; i++) {
+                        DataToken officerRoles = nameToRankDictionary[keys[i]];
+                        if (officerRoles.DataDictionary.TryGetValue(roleName, out DataToken value)) {
+                            if (value.CompareTo(token) <= 0) roleList.Add(keys[i], value);
+                        }
+                    }
+                    break;
+            }
+            
+            return roleList;
+        }
+        #endregion
+
+
+
+        //-------------------------Backwards Compatibility and Convenience Functions-------------------------//
+        #region BackwardsCompatibility&Convenience
         //Different flavors of the _Get function
         /* Default values if the officerID or roleIndex is out of range
          *   string: ""
@@ -307,71 +484,56 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
          *   float: 0
          */
         //String
-        public string _GetString(string officerName, string roleName) { return _GetString(_IDLookup(officerName), _RoleLookup(roleName)); }
-        public string _GetString(string officerName, int roleIndex  ) { return _GetString(_IDLookup(officerName), roleIndex); }
-        public string _GetString(int officerID     , string roleName) { return _GetString(officerID, _RoleLookup(roleName)); }
-        //String, local
-        public string _GetString(int roleIndex  ) { return _GetString(LocalOfficerID, roleIndex); }
-        public string _GetString(string roleName) { return _GetString(LocalOfficerID, _RoleLookup(roleName)); }
+        /// <summary>See <see cref="OfficerAccountManager._GetToken"/>. Default value is "" if the officer or role doesn't exist.</summary>
+        public string _GetString(string officerName, string roleName) => _GetToken(officerName, roleName, "").String;
+        /// <summary>See <see cref="OfficerAccountManager._GetToken"/>. Default value is "" if the officer or role doesn't exist.</summary>
+        public string _GetString(string roleName) => _GetLocalPlayerToken(roleName, "").String;
         //Bool
-        public bool _GetBool(int officerID, int roleIndex)
-        {
-            string value = _GetString(officerID, roleIndex);
-            bool success = bool.TryParse(value, out bool result);
-            if (!success)
-            {
-                string officerName = officerID == -1 ? "null" : OfficerData[officerID][1];
-                string roleName = roleIndex == -1 ? "null" : RoleNames[roleIndex];
-                Debug.LogWarning("Account Manager: Officer \"" + officerName + "\" role \"" + roleName + "\" could not parse \"" + value + "\" as a bool", this);
-                return false;
-            }
-            return result;
-        }
-        public bool _GetBool(string officerName, string roleName) { return _GetBool(_IDLookup(officerName), _RoleLookup(roleName)); }
-        public bool _GetBool(string officerName, int roleIndex  ) { return _GetBool(_IDLookup(officerName), roleIndex); }
-        public bool _GetBool(int officerID     , string roleName) { return _GetBool(officerID, _RoleLookup(roleName)); }
-        //Bool, local
-        public bool _GetBool(int roleIndex  ) { return _GetBool(LocalOfficerID, roleIndex); }
-        public bool _GetBool(string roleName) { return _GetBool(LocalOfficerID, _RoleLookup(roleName)); }
+        /// <summary>See <see cref="OfficerAccountManager._GetToken"/>. Default value is false if the officer or role doesn't exist.</summary>
+        public bool _GetBool(string officerName, string roleName) => _GetToken(officerName, roleName, false).Boolean;
+        /// <summary>See <see cref="OfficerAccountManager._GetToken"/>. Default value is false if the officer or role doesn't exist.</summary>
+        public bool _GetBool(string roleName) => _GetLocalPlayerToken(roleName, false).Boolean;
         //Int
-        public int _GetInt(int officerID, int roleIndex)
-        {
-            string value = _GetString(officerID, roleIndex);
-            bool success = int.TryParse(value, out int result);
-            if (!success)
-            {
-                string officerName = officerID == -1 ? "null" : OfficerData[officerID][1];
-                string roleName = roleIndex == -1 ? "null" : RoleNames[roleIndex];
-                Debug.LogWarning("Account Manager: Officer \"" + officerName + "\" role \"" + roleName + "\" could not parse \"" + value + "\" as an int", this);
-                return 0;
-            }
-            return result;
-        }
-        public int _GetInt(string officerName, string roleName) { return _GetInt(_IDLookup(officerName), _RoleLookup(roleName)); }
-        public int _GetInt(string officerName, int roleIndex  ) { return _GetInt(_IDLookup(officerName), roleIndex); }
-        public int _GetInt(int officerID     , string roleName) { return _GetInt(officerID, _RoleLookup(roleName)); }
-        //Int, local
-        public int _GetInt(int roleIndex  ) { return _GetInt(LocalOfficerID, roleIndex); }
-        public int _GetInt(string roleName) { return _GetInt(LocalOfficerID, _RoleLookup(roleName)); }
+        /// <summary>See <see cref="OfficerAccountManager._GetToken"/>. Default value is 0 if the officer or role doesn't exist.</summary>
+        public int _GetInt(string officerName, string roleName) => _GetToken(officerName, roleName, 0).Int;
+        /// <summary>See <see cref="OfficerAccountManager._GetToken"/>. Default value is 0 if the officer or role doesn't exist.</summary>
+        public int _GetInt(string roleName) => _GetLocalPlayerToken(roleName, 0).Int;
         //Float
-        public float _GetFloat(int officerID, int roleIndex)
+        /// <summary>See <see cref="OfficerAccountManager._GetToken"/>. Default value is 0 if the officer or role doesn't exist.</summary>
+        public float _GetFloat(string officerName, string roleName) => _GetToken(officerName, roleName, 0f).Float;
+        /// <summary>See <see cref="OfficerAccountManager._GetToken"/>. Default value is 0 if the officer or role doesn't exist.</summary>
+        public float _GetFloat(string roleName) => _GetLocalPlayerToken(roleName, 0f).Float;
+        #endregion
+
+
+
+        //-------------------------Debug-------------------------//
+        #region Debug
+        //Logging because I am dumb and stupid and suffer to make things pretty
+        internal void _Log(string value, UnityEngine.Object context = null) => _LogInternal(LogType.Log, value, context);
+        internal void _LogWarning(string value, UnityEngine.Object context = null) => _LogInternal(LogType.Warning, value, context);
+        internal void _LogError(string value, UnityEngine.Object context = null) => _LogInternal(LogType.Error, value, context);
+        internal void _LogInternal(LogType type = LogType.Log, string value = "", UnityEngine.Object context = null)
         {
-            string value = _GetString(officerID, roleIndex);
-            bool success = float.TryParse(value, out float result);
-            if (!success)
-            {
-                string officerName = officerID == -1 ? "null" : OfficerData[officerID][1];
-                string roleName = roleIndex == -1 ? "null" : RoleNames[roleIndex];
-                Debug.LogWarning("Account Manager: Officer \"" + officerName + "\" role \"" + roleName + "\" could not parse \"" + value + "\" as a float", this);
-                return 0;
+            Color color;
+            switch (type) {
+                case LogType.Warning:
+                    color = Color.yellow;
+                    break;
+                case LogType.Error:
+                    color = Color.red;
+                    break;
+                default:
+                    color = Color.white;
+                    break;
             }
-            return result;
+            string hexColor = color.r.ToString("X2") + color.g.ToString("X2") + color.b.ToString("X2");
+
+            if (context == null)
+                UnityEngine.Debug.Log("<color=navy><b>Account Manager:</b></color> <color=#" + hexColor + ">" + value + "</color>");
+            else
+                UnityEngine.Debug.Log("<color=navy><b>Account Manager:</b></color> <color=#" + hexColor + ">" + value + "</color>", context);
         }
-        public float _GetFloat(string officerName, string roleName) { return _GetFloat(_IDLookup(officerName), _RoleLookup(roleName)); }
-        public float _GetFloat(string officerName, int roleIndex  ) { return _GetFloat(_IDLookup(officerName), roleIndex); }
-        public float _GetFloat(int officerID     , string roleName) { return _GetFloat(officerID, _RoleLookup(roleName)); }
-        //Float, local
-        public float _GetFloat(int roleIndex  ) { return _GetFloat(LocalOfficerID, roleIndex); }
-        public float _GetFloat(string roleName) { return _GetFloat(LocalOfficerID, _RoleLookup(roleName)); }
+        #endregion
     }
 }

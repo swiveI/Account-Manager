@@ -14,8 +14,7 @@
     "url": "discord.gg/lpd"
   },
   "vpmDependencies" : {
-    "com.vrchat.base" : "",
-    "com.vrchat.worlds" : "",
-    "com.vrchat.udonsharp": ""
+    "com.vrchat.base" : "3.3.0",
+    "com.vrchat.worlds" : "3.3.0"
   }
 }
