@@ -126,6 +126,11 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         /// A dictionary mapping officer names to their role dictionaries.
         /// </summary>
         [NonSerialized] public DataDictionary nameToRankDictionary = new DataDictionary();
+
+        /// <summary>
+        /// An unsorted list of all role names.
+        /// </summary>
+        [NonSerialized] public DataList roleList = new DataList();
         #endregion       
 
 
@@ -280,7 +285,24 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         /// <param name="csv">The CSV file to parse.</param>
         public void ParseCSV(string csv)
         {
-            // Karet's problem
+            string[] lines = csv.Split(new char[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+            string[] columns = lines[0].Split(',');
+            roleList = new DataList();
+            for (int i = 1; i < columns.Length; i++) { roleList.Add(columns[i]); }
+
+            nameToRankDictionary = new DataDictionary();
+            for (int i = 1; i < lines.Length; i++)
+            {
+                string[] values = lines[i].Split(',');
+                string name = values[0];
+                DataDictionary officerRoles = new DataDictionary();
+                for (int j = 1; j < values.Length; j++)
+                {
+                    officerRoles.Add(columns[j], values[j]);
+                }
+                nameToRankDictionary.Add(name, officerRoles);
+            }
         }
 
         /// <summary>
@@ -432,61 +454,63 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         {
             if (performanceLogging) stopwatch.Start();
 
-            DataDictionary staffDictionary = _CreateFilteredRoleList("Staff", Comparator.EqualTo, "true");
+            //Dictionary enumerator
+            var userEnumerator = nameToRankDictionary.GetEnumerator();
+            //Rank index
+            int rankIndex = roleList.IndexOf(roleName);
 
-            DataDictionary roleList = new DataDictionary();
-            DataList keys = nameToRankDictionary.GetKeys();
+            //Create the dictionary
+            DataDictionary filteredDictionary = new DataDictionary();
 
             //I am so sorry for this abomination
             switch (comparator)
             {
                 case Comparator.EqualTo:
-                    for (int i = 0; i < keys.Count; i++) {
-                        DataToken officerRoles = nameToRankDictionary[keys[i]];
-                        if (officerRoles.DataDictionary.TryGetValue(roleName, out DataToken value)) {
-                            if (value.Equals(token)) roleList.Add(keys[i], value);
-                        }
+                    while (userEnumerator.MoveNext())
+                    {
+                        string name = userEnumerator.Current.Key.String;
+                        string value = userEnumerator.Current.Value.DataDictionary.GetValues()[rankIndex].String;
+                        if (value.Equals(token)) filteredDictionary.Add(name, value);
                     }
                     break;
                 case Comparator.NotEqualTo:
-                    for (int i = 0; i < keys.Count; i++) {
-                        DataToken officerRoles = nameToRankDictionary[keys[i]];
-                        if (officerRoles.DataDictionary.TryGetValue(roleName, out DataToken value)) {
-                            int compare = value.CompareTo(token);
-                            if (!value.Equals(token)) roleList.Add(keys[i], value);
-                        }
+                    while (userEnumerator.MoveNext())
+                    {
+                        string name = userEnumerator.Current.Key.String;
+                        string value = userEnumerator.Current.Value.DataDictionary.GetValues()[rankIndex].String;
+                        if (!value.Equals(token)) filteredDictionary.Add(name, value);
                     }
                     break;
                 case Comparator.GreaterThan:
-                    for (int i = 0; i < keys.Count; i++) {
-                        DataToken officerRoles = nameToRankDictionary[keys[i]];
-                        if (officerRoles.DataDictionary.TryGetValue(roleName, out DataToken value)) {
-                            if (value.CompareTo(token) > 0) roleList.Add(keys[i], value);
-                        }
+                    while (userEnumerator.MoveNext())
+                    {
+                        string name = userEnumerator.Current.Key.String;
+                        string value = userEnumerator.Current.Value.DataDictionary.GetValues()[rankIndex].String;
+                        if (value.CompareTo(token) > 0) filteredDictionary.Add(name, value);
                     }
                     break;
                 case Comparator.LessThan:
-                    for (int i = 0; i < keys.Count; i++) {
-                        DataToken officerRoles = nameToRankDictionary[keys[i]];
-                        if (officerRoles.DataDictionary.TryGetValue(roleName, out DataToken value)) {
-                            if (value.CompareTo(token) < 0) roleList.Add(keys[i], value);
-                        }
+                    while (userEnumerator.MoveNext())
+                    {
+                        string name = userEnumerator.Current.Key.String;
+                        string value = userEnumerator.Current.Value.DataDictionary.GetValues()[rankIndex].String;
+                        if (value.CompareTo(token) < 0) filteredDictionary.Add(name, value);
                     }
                     break;
                 case Comparator.GreaterThanOrEqualTo:
-                    for (int i = 0; i < keys.Count; i++) {
-                        DataToken officerRoles = nameToRankDictionary[keys[i]];
-                        if (officerRoles.DataDictionary.TryGetValue(roleName, out DataToken value)) {
-                            if (value.CompareTo(token) >= 0) roleList.Add(keys[i], value);
-                        }
+                    while (userEnumerator.MoveNext())
+                    {
+                        string name = userEnumerator.Current.Key.String;
+                        string value = userEnumerator.Current.Value.DataDictionary.GetValues()[rankIndex].String;
+                        if (value.CompareTo(token) >= 0) filteredDictionary.Add(name, value);
                     }
                     break;
                 case Comparator.LessThanOrEqualTo:
-                    for (int i = 0; i < keys.Count; i++) {
-                        DataToken officerRoles = nameToRankDictionary[keys[i]];
-                        if (officerRoles.DataDictionary.TryGetValue(roleName, out DataToken value)) {
-                            if (value.CompareTo(token) <= 0) roleList.Add(keys[i], value);
-                        }
+                    while (userEnumerator.MoveNext())
+                    {
+                        string name = userEnumerator.Current.Key.String;
+                        string value = userEnumerator.Current.Value.DataDictionary.GetValues()[rankIndex].String;
+                        if (value.CompareTo(token) <= 0) filteredDictionary.Add(name, value);
                     }
                     break;
             }
@@ -496,7 +520,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                 _Log("Creating filtered role list took " + stopwatch.ElapsedMilliseconds + "ms", this);
             }
 
-            return roleList;
+            return filteredDictionary;
         }
         #endregion
 
