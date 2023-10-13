@@ -278,27 +278,26 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                 receiver.SendCustomEvent(eventName);
             }
 
-            //Performance test
-            _Log("Testing List generation performance");
-            _CreateRoleDict("Rank");
+            // //----------Performance test----------//
+            // _Log("Testing List generation performance");
+            // _CreateRoleDict("Rank");
 
-            _Log("Testing Filtered List generation performance (Staff)");
-            DataDictionary staffList = _CreateFilteredRoleDict("Staff", Comparator.EqualTo, "True");
-            _Log("Staff List has " + staffList.Count + " entries");
+            // _Log("Testing Filtered List generation performance (Staff)");
+            // DataDictionary staffList = _CreateFilteredRoleDict("Staff", Comparator.EqualTo, "True");
+            // _Log("Staff List has " + staffList.Count + " entries");
 
-            _Log("Testing Filtered List generation performance (Recruit)");
-            DataDictionary recruitList = _CreateFilteredRoleDict("Rank", Comparator.EqualTo, "LPD Recruit");
-            float percent = (float) recruitList.Count / (float) nameToRankDictionary.Count;
-            _Log(recruitList.Count + " of " + nameToRankDictionary.Count + " officers are recruits!. That's " + percent.ToString("P1") + "!");
+            // _Log("Testing Filtered List generation performance (Recruit)");
+            // DataDictionary recruitList = _CreateFilteredRoleDict("Rank", Comparator.EqualTo, "LPD Recruit");
+            // float percent = (float) recruitList.Count / (float) nameToRankDictionary.Count;
+            // _Log(recruitList.Count + " of " + nameToRankDictionary.Count + " officers are recruits!. That's " + percent.ToString("P1") + "!");
 
-
-            _Log("Testing Filtered List generation performance (Dev)");
-            DataDictionary devDict = _CreateFilteredRoleDict("Dev", Comparator.EqualTo, "True");
-            DataList devNames = devDict.GetKeys();
-            devNames.Sort();
-            string devNameList = "";
-            for (int i = 0; i < devNames.Count; i++) { devNameList += '\n' + devNames[i].String; }
-            _Log("The LPD devs are:" + devNameList);
+            // _Log("Testing Filtered List generation performance (Dev)");
+            // DataDictionary devDict = _CreateFilteredRoleDict("Dev", Comparator.EqualTo, "True");
+            // DataList devNames = devDict.GetKeys();
+            // devNames.Sort();
+            // string devNameList = "";
+            // for (int i = 0; i < devNames.Count; i++) { devNameList += '\n' + devNames[i].String; }
+            // _Log("The LPD devs are:" + devNameList);
         }
 
         /// <summary>
@@ -337,7 +336,18 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         /// <param name="json">The JSON file to parse.</param>
         public void ParseJSON(string json)
         {
-            // Karet's problem
+            if(VRCJson.TryDeserializeFromJson(json, out DataToken result))
+            {
+                nameToRankDictionary = result.DataDictionary;
+            }
+            else
+            {
+                _LogError("Failed to parse JSON data. Accounts are not be loaded but the script did not crash. You may try again with a different set of data.", this);
+                isInitializing = false;
+                isReady = false;
+                initializedSuccessfully = false;
+                return; //Give up
+            }
         }
         #endregion
 
@@ -491,7 +501,8 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
             //Create the dictionary
             DataDictionary filteredDictionary = new DataDictionary();
 
-            //I am so sorry for this abomination
+            //I am so sorry for this abomination but it runs faster than checking each iteration
+            //because UdonSharp compiles switch statements as if/elseif/elseif/elseif/else
             switch (comparator)
             {
                 case Comparator.EqualTo:
