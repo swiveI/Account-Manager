@@ -138,11 +138,11 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         //-------------------------Initialization Functions-------------------------//
         #region Initialization
         /// <summary>
-        /// Allow <see cref="UdonBehaviour"/> instances to be notified when the <see cref="OfficerAccountManager"/> has finished initializing.
+        /// Allow <see cref="UdonSharpBehaviour"/> instances to be notified when the <see cref="OfficerAccountManager"/> has finished initializing.
         /// </summary>
-        /// <param name="behaviour">The <see cref="UdonBehaviour"/> to notify.</param>
+        /// <param name="behaviour">The <see cref="UdonSharpBehaviour"/> to notify.</param>
         /// <param name="functionName">The name of the function to call when the <see cref="OfficerAccountManager"/> has finished initializing.</param>
-        public void NotifyWhenInitialized(UdonBehaviour behaviour, string functionName)
+        public void NotifyWhenInitialized(UdonSharpBehaviour behaviour, string functionName)
         {
             //If we are already initialized, send the event immediately
             if (isReady)
@@ -166,10 +166,10 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         }
 
         /// <summary>
-        /// Removes a UdonBehaviour from the list of listeners that will be notified when the OfficerAccountManager is initialized.
+        /// Removes a <see cref="UdonSharpBehaviour"/> from the list of listeners that will be notified when the OfficerAccountManager is initialized.
         /// </summary>
-        /// <param name="behaviour">The UdonBehaviour to remove from the listener list.</param>
-        public void RemoveListener(UdonBehaviour behaviour)
+        /// <param name="behaviour">The <see cref="UdonSharpBehaviour"/> to remove from the listener list.</param>
+        public void RemoveListener(UdonSharpBehaviour behaviour)
         {
             if (OnInitializedListeners.ContainsKey(behaviour))
             {
@@ -273,10 +273,32 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
             DataList keys = OnInitializedListeners.GetKeys();
             for (int i = 0; i < keys.Count; i++)
             {
-                UdonBehaviour receiver = (UdonBehaviour)keys[i].Reference;
+                UdonSharpBehaviour receiver = (UdonSharpBehaviour)keys[i].Reference;
                 string eventName = OnInitializedListeners[keys[i]].ToString();
                 receiver.SendCustomEvent(eventName);
             }
+
+            //Performance test
+            _Log("Testing List generation performance");
+            _CreateRoleDict("Rank");
+
+            _Log("Testing Filtered List generation performance (Staff)");
+            DataDictionary staffList = _CreateFilteredRoleDict("Staff", Comparator.EqualTo, "True");
+            _Log("Staff List has " + staffList.Count + " entries");
+
+            _Log("Testing Filtered List generation performance (Recruit)");
+            DataDictionary recruitList = _CreateFilteredRoleDict("Rank", Comparator.EqualTo, "LPD Recruit");
+            float percent = (float) recruitList.Count / (float) nameToRankDictionary.Count;
+            _Log(recruitList.Count + " of " + nameToRankDictionary.Count + " officers are recruits!. That's " + percent.ToString("P1") + "!");
+
+
+            _Log("Testing Filtered List generation performance (Dev)");
+            DataDictionary devDict = _CreateFilteredRoleDict("Dev", Comparator.EqualTo, "True");
+            DataList devNames = devDict.GetKeys();
+            devNames.Sort();
+            string devNameList = "";
+            for (int i = 0; i < devNames.Count; i++) { devNameList += '\n' + devNames[i].String; }
+            _Log("The LPD devs are:" + devNameList);
         }
 
         /// <summary>
@@ -287,9 +309,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         {
             string[] lines = csv.Split(new char[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
 
-            string[] columns = lines[0].Split(',');
-            roleList = new DataList();
-            for (int i = 1; i < columns.Length; i++) { roleList.Add(columns[i]); }
+            string[] roleNames = lines[0].Split(',');
 
             nameToRankDictionary = new DataDictionary();
             for (int i = 1; i < lines.Length; i++)
@@ -299,7 +319,13 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                 DataDictionary officerRoles = new DataDictionary();
                 for (int j = 1; j < values.Length; j++)
                 {
-                    officerRoles.Add(columns[j], values[j]);
+                    string value = values[j];
+                    //Skip entries which parse to "false"
+                    if (bool.TryParse(value, out bool result) && result == false) {
+                        //Do not add false entries
+                    } else {
+                        officerRoles.Add(roleNames[j], values[j]);
+                    }
                 }
                 nameToRankDictionary.Add(name, officerRoles);
             }
@@ -420,7 +446,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         /// </summary>
         /// <param name="roleName">The name of the role to filter by.</param>
         /// <returns>A dictionary of officer names and their corresponding role values for the given role name.</returns>
-        public DataDictionary _CreateRoleList(string roleName)
+        public DataDictionary _CreateRoleDict(string roleName)
         {
             if (performanceLogging) stopwatch.Start();
 
@@ -450,12 +476,15 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         /// <param name="comparator">The comparator to use for filtering.</param>
         /// <param name="token">The token to compare against.</param>
         /// <returns>A DataDictionary containing the filtered list of officers.</returns>
-        public DataDictionary _CreateFilteredRoleList(string roleName, Comparator comparator, DataToken token)
+        public DataDictionary _CreateFilteredRoleDict(string roleName, Comparator comparator, DataToken token)
         {
             if (performanceLogging) stopwatch.Start();
 
             //Dictionary enumerator
-            var userEnumerator = nameToRankDictionary.GetEnumerator();
+            // var userEnumerator = nameToRankDictionary.GetEnumerator();
+            //Pretend dictionary enumerator
+            DataList names = nameToRankDictionary.GetKeys();
+            DataList rankDicts = nameToRankDictionary.GetValues();
             //Rank index
             int rankIndex = roleList.IndexOf(roleName);
 
@@ -466,51 +495,51 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
             switch (comparator)
             {
                 case Comparator.EqualTo:
-                    while (userEnumerator.MoveNext())
+                    for (int i = 0; i < names.Count; i++)
                     {
-                        string name = userEnumerator.Current.Key.String;
-                        string value = userEnumerator.Current.Value.DataDictionary.GetValues()[rankIndex].String;
-                        if (value.Equals(token)) filteredDictionary.Add(name, value);
+                        string name = names[i].String;
+                        DataToken value = rankDicts[i].DataDictionary[roleName];
+                        if (!value.IsNull && value.Equals(token)) filteredDictionary.Add(name, value);
                     }
                     break;
                 case Comparator.NotEqualTo:
-                    while (userEnumerator.MoveNext())
+                    for (int i = 0; i < names.Count; i++)
                     {
-                        string name = userEnumerator.Current.Key.String;
-                        string value = userEnumerator.Current.Value.DataDictionary.GetValues()[rankIndex].String;
-                        if (!value.Equals(token)) filteredDictionary.Add(name, value);
+                        string name = names[i].String;
+                        DataToken value = rankDicts[i].DataDictionary[roleName];
+                        if (!value.IsNull && !value.Equals(token)) filteredDictionary.Add(name, value);
                     }
                     break;
                 case Comparator.GreaterThan:
-                    while (userEnumerator.MoveNext())
+                    for (int i = 0; i < names.Count; i++)
                     {
-                        string name = userEnumerator.Current.Key.String;
-                        string value = userEnumerator.Current.Value.DataDictionary.GetValues()[rankIndex].String;
-                        if (value.CompareTo(token) > 0) filteredDictionary.Add(name, value);
+                        string name = names[i].String;
+                        DataToken value = rankDicts[i].DataDictionary[roleName];
+                        if (!value.IsNull && value.CompareTo(token) > 0) filteredDictionary.Add(name, value);
                     }
                     break;
                 case Comparator.LessThan:
-                    while (userEnumerator.MoveNext())
+                    for (int i = 0; i < names.Count; i++)
                     {
-                        string name = userEnumerator.Current.Key.String;
-                        string value = userEnumerator.Current.Value.DataDictionary.GetValues()[rankIndex].String;
-                        if (value.CompareTo(token) < 0) filteredDictionary.Add(name, value);
+                        string name = names[i].String;
+                        DataToken value = rankDicts[i].DataDictionary[roleName];
+                        if (!value.IsNull && value.CompareTo(token) < 0) filteredDictionary.Add(name, value);
                     }
                     break;
                 case Comparator.GreaterThanOrEqualTo:
-                    while (userEnumerator.MoveNext())
+                    for (int i = 0; i < names.Count; i++)
                     {
-                        string name = userEnumerator.Current.Key.String;
-                        string value = userEnumerator.Current.Value.DataDictionary.GetValues()[rankIndex].String;
-                        if (value.CompareTo(token) >= 0) filteredDictionary.Add(name, value);
+                        string name = names[i].String;
+                        DataToken value = rankDicts[i].DataDictionary[roleName];
+                        if (!value.IsNull && value.CompareTo(token) >= 0) filteredDictionary.Add(name, value);
                     }
                     break;
                 case Comparator.LessThanOrEqualTo:
-                    while (userEnumerator.MoveNext())
+                    for (int i = 0; i < names.Count; i++)
                     {
-                        string name = userEnumerator.Current.Key.String;
-                        string value = userEnumerator.Current.Value.DataDictionary.GetValues()[rankIndex].String;
-                        if (value.CompareTo(token) <= 0) filteredDictionary.Add(name, value);
+                        string name = names[i].String;
+                        DataToken value = rankDicts[i].DataDictionary[roleName];
+                        if (!value.IsNull && value.CompareTo(token) <= 0) filteredDictionary.Add(name, value);
                     }
                     break;
             }
@@ -603,7 +632,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         internal void _LogError(string value, UnityEngine.Object context = null) => _LogInternal(LogType.Error, value, context);
         internal void _LogInternal(LogType type = LogType.Log, string value = "", UnityEngine.Object context = null)
         {
-            Color color;
+            Color32 color;
             switch (type) {
                 case LogType.Warning:
                     color = Color.yellow;
