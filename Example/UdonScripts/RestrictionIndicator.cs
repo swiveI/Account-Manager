@@ -30,6 +30,12 @@ namespace LoliPoliceDepartment.Examples
         #endif
         
         private void Start() {
+            //Wait for the account manager to be ready
+            accountManager.NotifyWhenInitialized(this, nameof(AccountManagerReady));
+        }
+
+        public void AccountManagerReady()
+        {
             //Display true or false based on the player's role
             bool allowed = accountManager._GetBool(roleName); //Note: The default value is "false" if the officer or role doesn't exist
             if (text != null) text.text = allowed ? allowedText : deniedText;

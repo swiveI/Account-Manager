@@ -21,8 +21,14 @@ namespace LoliPoliceDepartment.Examples
             }
         #endif
         
-        //Disallow the current player from picking up this object if they don't have the required role
         private void Start() {
+            //Wait for the account manager to be ready
+            accountManager.NotifyWhenInitialized(this, nameof(AccountManagerReady));
+        }
+
+        public void AccountManagerReady()
+        {
+            //Disallow the current player from picking up this object if they don't have the required role
             bool allowed = accountManager._GetBool(allowedRole);
             if (!allowed)
             {

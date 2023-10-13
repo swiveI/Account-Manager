@@ -22,8 +22,14 @@ namespace LoliPoliceDepartment.Examples
             }
         #endif
         
-        //Show the current player's string value for the specified role
         private void Start() {
+            //Wait for the account manager to be ready
+            accountManager.NotifyWhenInitialized(this, nameof(AccountManagerReady));
+        }
+
+        public void AccountManagerReady()
+        {
+            //Show the current player's string value for the specified role
             string value = accountManager._GetString(roleName); //Note: The default value is "" if the officer or role doesn't exist
             text.text = value;
         }
