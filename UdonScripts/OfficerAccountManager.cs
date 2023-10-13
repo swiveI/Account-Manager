@@ -5,6 +5,17 @@ using VRC.Udon;
 using System;
 using VRC.SDK3.StringLoading;
 using VRC.SDK3.Data;
+using UnityEditor.Graphs;
+using UnityEngine.UI;
+using PlasticPipe.PlasticProtocol.Messages;
+
+
+
+
+#if UNITY_EDITOR && !COMPILER_UDONSHARP
+using UnityEditor;
+#endif
+
 
 namespace LoliPoliceDepartment.Utilities.AccountManager
 {
@@ -42,6 +53,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
     /// <summary>
     /// Manages officer account data, including loading and parsing data from a remote source.
     /// </summary>
+    [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
     public class OfficerAccountManager : UdonSharpBehaviour
     {
         //-------------------------Notes-------------------------//
@@ -71,7 +83,9 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         /// The raw data representing all of the officers.
         /// Editor/Offline data is stored here and is overwritten by Internet data if any is downloaded at runtime.
         /// </summary>
-        [SerializeField, HideInInspector] public string rawOfficerData = "";
+        // [HideInInspector]
+        [SerializeField, Multiline] public string rawOfficerData = "";
+        [Space]
         
         /// <summary>
         /// The URL for online officer data.
@@ -88,7 +102,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         /// <summary>
         /// The preferred location for fetching account data.
         /// </summary>
-        [SerializeField] public DataSource desiredDataSource { get; private set; } = DataSource.Editor;
+        [SerializeField] public DataSource desiredDataSource = DataSource.Editor;
 
         /// <summary>
         /// The locaton of the data that is currently loaded.
@@ -248,7 +262,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         private void DataReady()
         {
             //Parse whatever data is available
-            if (performanceLogging) stopwatch.Start();
+            if (performanceLogging) stopwatch.Restart();
             if (dataFormat == DataFormat.CSV)
             {
                 //Parse the CSV file
@@ -278,26 +292,26 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                 receiver.SendCustomEvent(eventName);
             }
 
-            // //----------Performance test----------//
-            // _Log("Testing List generation performance");
-            // _CreateRoleDict("Rank");
+            //----------Performance test----------//
+            _Log("Testing List generation performance");
+            _CreateRoleDict("Rank");
 
-            // _Log("Testing Filtered List generation performance (Staff)");
-            // DataDictionary staffList = _CreateFilteredRoleDict("Staff", Comparator.EqualTo, "True");
-            // _Log("Staff List has " + staffList.Count + " entries");
+            _Log("Testing Filtered List generation performance (Staff)");
+            DataDictionary staffList = _CreateFilteredRoleDict("Staff", Comparator.EqualTo, "True");
+            _Log("Staff List has " + staffList.Count + " entries");
 
-            // _Log("Testing Filtered List generation performance (Recruit)");
-            // DataDictionary recruitList = _CreateFilteredRoleDict("Rank", Comparator.EqualTo, "LPD Recruit");
-            // float percent = (float) recruitList.Count / (float) nameToRankDictionary.Count;
-            // _Log(recruitList.Count + " of " + nameToRankDictionary.Count + " officers are recruits!. That's " + percent.ToString("P1") + "!");
+            _Log("Testing Filtered List generation performance (Recruit)");
+            DataDictionary recruitList = _CreateFilteredRoleDict("Rank", Comparator.EqualTo, "LPD Recruit");
+            float percent = (float) recruitList.Count / (float) nameToRankDictionary.Count;
+            _Log(recruitList.Count + " of " + nameToRankDictionary.Count + " officers are recruits!. That's " + percent.ToString("P1") + "!");
 
-            // _Log("Testing Filtered List generation performance (Dev)");
-            // DataDictionary devDict = _CreateFilteredRoleDict("Dev", Comparator.EqualTo, "True");
-            // DataList devNames = devDict.GetKeys();
-            // devNames.Sort();
-            // string devNameList = "";
-            // for (int i = 0; i < devNames.Count; i++) { devNameList += '\n' + devNames[i].String; }
-            // _Log("The LPD devs are:" + devNameList);
+            _Log("Testing Filtered List generation performance (Dev)");
+            DataDictionary devDict = _CreateFilteredRoleDict("Dev", Comparator.EqualTo, "True");
+            DataList devNames = devDict.GetKeys();
+            devNames.Sort();
+            string devNameList = "";
+            for (int i = 0; i < devNames.Count; i++) { devNameList += '\n' + devNames[i].String; }
+            _Log("The LPD devs are:" + devNameList);
         }
 
         /// <summary>
@@ -458,7 +472,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         /// <returns>A dictionary of officer names and their corresponding role values for the given role name.</returns>
         public DataDictionary _CreateRoleDict(string roleName)
         {
-            if (performanceLogging) stopwatch.Start();
+            if (performanceLogging) stopwatch.Restart();
 
             DataDictionary roleList = new DataDictionary();
             DataList keys = nameToRankDictionary.GetKeys();
@@ -488,7 +502,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         /// <returns>A DataDictionary containing the filtered list of officers.</returns>
         public DataDictionary _CreateFilteredRoleDict(string roleName, Comparator comparator, DataToken token)
         {
-            if (performanceLogging) stopwatch.Start();
+            if (performanceLogging) stopwatch.Restart();
 
             //Dictionary enumerator
             // var userEnumerator = nameToRankDictionary.GetEnumerator();
@@ -664,4 +678,53 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         }
         #endregion
     }
+
+
+
+
+
+
+    #if UNITY_EDITOR && !COMPILER_UDONSHARP
+    [CustomEditor(typeof(OfficerAccountManager))]
+    public class OfficerAccountManagerEditor : Editor {
+
+        private Texture2D HeaderTexture;
+        private Texture2D twitterLogo;
+        private Texture2D discordLogo;
+        private Texture2D youtubeLogo;
+        private Texture2D kofiLogo;
+
+        private Vector2 scrollPos = new Vector2(0, 0);
+        private int mipLevel = 8;
+
+        public override void OnInspectorGUI() {
+            HeaderTexture = HeaderTexture ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/TITLEBAR.png", typeof(Texture2D));
+            twitterLogo   = twitterLogo   ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/SocialLogos/TwitterLogo.png", typeof(Texture2D));
+            discordLogo   = discordLogo   ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/SocialLogos/DiscordLogo.png", typeof(Texture2D));
+            youtubeLogo   = youtubeLogo   ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/SocialLogos/YoutubeLogo.png", typeof(Texture2D));
+            kofiLogo      = kofiLogo      ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/SocialLogos/KofiLogo.png", typeof(Texture2D));
+
+
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, 128), HeaderTexture, ScaleMode.ScaleToFit);
+            GUILayoutUtility.GetRect(Screen.width, 128);
+
+            base.OnInspectorGUI();
+            
+            using (new GUILayout.HorizontalScope())
+            {
+                GUI.color = Color.white;
+                GUI.backgroundColor = Color.white;
+                
+                GUI.backgroundColor = new Color(0.4509804f, 0.5411765f, 0.8588236f, 1f);
+                if (GUILayout.Button(new GUIContent(discordLogo, "Discord"), EditorStyles.miniButtonMid, GUILayout.Width(Screen.width / 4), GUILayout.Height(60))) Application.OpenURL("https://discord.gg/lpd");
+                GUI.backgroundColor = new Color(0.1137255f, 0.6313726f, 0.9490196f, 1f);
+                if (GUILayout.Button(new GUIContent(twitterLogo, "Twitter"), EditorStyles.miniButtonMid, GUILayout.Width(Screen.width / 4), GUILayout.Height(60))) Application.OpenURL("https://twitter.com/LPD_vrchat");
+                GUI.backgroundColor = new Color(0.8039216f, 0.1254902f, 0.1215686f, 1f);
+                if (GUILayout.Button(new GUIContent(youtubeLogo, "Youtube"), EditorStyles.miniButtonMid, GUILayout.Width(Screen.width / 4), GUILayout.Height(60))) Application.OpenURL("https://www.youtube.com/c/LoliPoliceDepartment");
+                GUI.backgroundColor = new Color(1f, 0.3137255f, 0.3137255f, 1f);
+                if (GUILayout.Button(new GUIContent(kofiLogo, "Ko-fi"), EditorStyles.miniButtonMid, GUILayout.Width(Screen.width / 4), GUILayout.Height(60))) Application.OpenURL("https://ko-fi.com/lolipolicedepartment");
+            }
+        }
+    }
+    #endif
 }
