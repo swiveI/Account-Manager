@@ -313,26 +313,26 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                 receiver.SendCustomEvent(eventName);
             }
 
-            //----------Performance test----------//
-            _Log("Testing List generation performance");
-            _CreateRoleDict("Rank");
+            // //----------Performance test----------//
+            // _Log("Testing List generation performance");
+            // _CreateRoleDict("Rank");
 
-            _Log("Testing Filtered List generation performance (Staff)");
-            DataDictionary staffList = _CreateFilteredRoleDict("Staff", Comparator.EqualTo, "True");
-            _Log("Staff List has " + staffList.Count + " entries");
+            // _Log("Testing Filtered List generation performance (Staff)");
+            // DataDictionary staffList = _CreateFilteredRoleDict("Staff", Comparator.EqualTo, "True");
+            // _Log("Staff List has " + staffList.Count + " entries");
 
-            _Log("Testing Filtered List generation performance (Recruit)");
-            DataDictionary recruitList = _CreateFilteredRoleDict("Rank", Comparator.EqualTo, "LPD Recruit");
-            float percent = (float) recruitList.Count / (float) nameToRankDictionary.Count;
-            _Log(recruitList.Count + " of " + nameToRankDictionary.Count + " officers are recruits!. That's " + percent.ToString("P1") + "!");
+            // _Log("Testing Filtered List generation performance (Recruit)");
+            // DataDictionary recruitList = _CreateFilteredRoleDict("Rank", Comparator.EqualTo, "LPD Recruit");
+            // float percent = (float) recruitList.Count / (float) nameToRankDictionary.Count;
+            // _Log(recruitList.Count + " of " + nameToRankDictionary.Count + " officers are recruits!. That's " + percent.ToString("P1") + "!");
 
-            _Log("Testing Filtered List generation performance (Dev)");
-            DataDictionary devDict = _CreateFilteredRoleDict("Dev", Comparator.EqualTo, "True");
-            DataList devNames = devDict.GetKeys();
-            devNames.Sort();
-            string devNameList = "";
-            for (int i = 0; i < devNames.Count; i++) { devNameList += '\n' + devNames[i].String; }
-            _Log("The LPD devs are:" + devNameList);
+            // _Log("Testing Filtered List generation performance (Dev)");
+            // DataDictionary devDict = _CreateFilteredRoleDict("Dev", Comparator.EqualTo, "True");
+            // DataList devNames = devDict.GetKeys();
+            // devNames.Sort();
+            // string devNameList = "";
+            // for (int i = 0; i < devNames.Count; i++) { devNameList += '\n' + devNames[i].String; }
+            // _Log("The LPD devs are:" + devNameList);
         }
 
         /// <summary>
