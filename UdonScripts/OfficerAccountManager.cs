@@ -244,6 +244,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                     //Request data from the web server
                     _Log("Fetching officer data from " + remoteDataURL.Get(), this);
                     // currentDataSource = DataSource.Local; //Set later depending on whether the request succeeds
+                    stopwatch.Restart();
                     VRCStringDownloader.LoadUrl(remoteDataURL, (VRC.Udon.Common.Interfaces.IUdonEventReceiver) this);
                     break;
             }
@@ -256,9 +257,11 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         /// <param name="result">The raw account data downloaded from the web server.</param>
         public override void OnStringLoadSuccess(IVRCStringDownload result)
         {
+            stopwatch.Stop();
+
             //Overwrite the offline data and continue initializing
             rawOfficerData = result.Result;
-            _Log("Officer data downloaded successfully", this);
+            _Log("Officer data downloaded successfully in " + stopwatch.ElapsedMilliseconds + " ms", this);
             currentDataSource = DataSource.Internet;
             initializedSuccessfully = true;
             DataReady();
@@ -753,8 +756,9 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
             float imageAspectRatio = ((float) HeaderBG.width) / ((float) HeaderBG.height);
             float screenAspectRatio = ((float) Screen.width) / ((float) 128);
 
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, 128), HeaderBG, imageAspectRatio < screenAspectRatio ? ScaleMode.ScaleAndCrop : ScaleMode.StretchToFill);
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, 128), HeaderLogo, ScaleMode.ScaleToFit);
+            bool horizontalStretch = imageAspectRatio < screenAspectRatio;
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, 128), HeaderBG, horizontalStretch ? ScaleMode.ScaleAndCrop : ScaleMode.StretchToFill);
+            GUI.DrawTexture(new Rect(0, 0, horizontalStretch ? 512 : Screen.width, 128), HeaderLogo, ScaleMode.ScaleToFit);
             GUI.DrawTexture(new Rect(0, 0, Screen.width, 128), HeaderText, ScaleMode.ScaleToFit);
             //Offset this to the right of the screen
             GUI.DrawTexture(new Rect(Screen.width - 256, 0, 512, 128), HeaderTape, ScaleMode.ScaleAndCrop);
