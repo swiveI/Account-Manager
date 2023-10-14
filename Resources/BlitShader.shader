@@ -2,10 +2,11 @@
 {
     Properties
     {
-        _MainTex ("Texture", 2D) = "white" {}
-        _MipLevel ("Mip Level", float) = 0
-        _Left ("Left", float) = 0
-        _Right ("Right", float) = 1
+        _Foreground ("Foreground", 2D) = "white" {}
+        _Background ("Background", 2D) = "white" {}
+        _Bounds ("Bounds", Vector) = (0, 0, 256, 256)
+        _MousePos ("Offset", Vector) = (128, 128, 0, 0)
+        _MaxOffset ("Max Offset", Float) = 128
     }
     SubShader
     {
@@ -34,8 +35,11 @@
                 float2 uv : TEXCOORD0;
             };
 
-            sampler2D _MainTex;
-            uniform float _MipLevel;
+            uniform sampler2D _Foreground;
+            uniform sampler2D _Background;
+            uniform float4 _Bounds;
+            uniform float2 _MousePos;
+            uniform float _MaxOffset;
 
             v2f vert (appdata v)
             {
@@ -47,35 +51,24 @@
 
             fixed4 frag (v2f i) : SV_Target
             {
-                float4 col = 0;
-                float Alpha = 1 / _MipLevel;
+                float2 windowCenter = _Bounds.xy + (_Bounds.zw / 2);
+                float2 offset = _MousePos - windowCenter;
+                //Normalize the offset to the UV
+                offset /= _Bounds.zw;
 
-                bool left = i.uv.x < _Left;
-                bool right = i.uv.x > _Right;
-                bool middle = !left && !right;
-                float distanceToEdge; // 0 to 1
+                //Sample the textures
+                fixed4 foreground, background;
+                foreground = tex2Dlod(_Foreground, float4(i.uv, 0, 0));
+                background = tex2Dlod(_Background, float4(i.uv + offset, 0, 0));
 
-                if (left)
-                {
-                    distanceToEdge = _Left - i.uv.x;
-                }
-                else if (right)
-                {
-                    distanceToEdge = i.uv.x - _Right;
-                }
-                else
-                {
-                    distanceToEdge = 0;
-                }
-
-
-
-                for (int mip = 0; mip < _MipLevel; mip++)
-                {
-                    col += tex2Dlod(_MainTex, float4(i.uv, 0, mip * i.uv.x)) * Alpha;
-                }
-                col.a = 1;
-                return col;
+                //Layer them with alpha
+                fixed4 buffer;
+                buffer = background;
+                buffer = lerp(buffer, foreground, foreground.a);
+                
+                //Output
+                buffer.a = 1;
+                return buffer;
             }
             ENDCG
         }

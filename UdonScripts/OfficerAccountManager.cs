@@ -8,6 +8,8 @@ using VRC.SDK3.Data;
 using UnityEditor.Graphs;
 using UnityEngine.UI;
 using PlasticPipe.PlasticProtocol.Messages;
+using UnityEditor.PackageManager.UI;
+
 
 
 
@@ -705,7 +707,13 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
             kofiLogo      = kofiLogo      ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/SocialLogos/KofiLogo.png", typeof(Texture2D));
 
 
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, 128), HeaderTexture, ScaleMode.ScaleToFit);
+            // GUI.DrawTexture(new Rect(0, 0, Screen.width, 128), HeaderTexture, ScaleMode.ScaleToFit);
+            //Get the bounds of this window
+            Vector4 windowBounds = new Vector4(0, 0, Screen.width, Screen.height);
+            //Get the mouse position relative to this window
+            Vector2 mousePos = new Vector2(Screen.width / 2, Screen.height / 2) + new Vector2(Mathf.PingPong(Time.time * 64, 128), 0);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, 128), HeaderAnimator.GetTexture(Screen.width, 128, windowBounds, mousePos), ScaleMode.ScaleToFit);
+            EditorUtility.SetDirty( target );
             GUILayoutUtility.GetRect(Screen.width, 128);
 
             base.OnInspectorGUI();
@@ -724,6 +732,54 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                 GUI.backgroundColor = new Color(1f, 0.3137255f, 0.3137255f, 1f);
                 if (GUILayout.Button(new GUIContent(kofiLogo, "Ko-fi"), EditorStyles.miniButtonMid, GUILayout.Width(Screen.width / 4), GUILayout.Height(60))) Application.OpenURL("https://ko-fi.com/lolipolicedepartment");
             }
+        }
+    }
+
+    internal static class HeaderAnimator
+    {
+        private static RenderTexture _rt;
+        public static RenderTexture renderTexture {
+            get {
+                if (_rt == null) {
+                    _rt = new RenderTexture(256, 256, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default);
+                    _rt.filterMode = FilterMode.Point;
+                    _rt.useMipMap = false;
+                    _rt.autoGenerateMips = false;
+                    _rt.Create();
+                }
+                return _rt;
+            }
+        }
+        private static Material _mat;
+        private static Material mat {
+            get {
+                if (_mat == null) {
+                    _mat = (Material)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/BlitMat.mat", typeof(Material));
+                }
+                return _mat;
+            }
+        }
+
+        public static RenderTexture GetTexture(int width, int height, Vector4 windowBounds, Vector2 mousePos)
+        {
+            RenderTexture oldRt = RenderTexture.active;
+            RenderTexture rt = renderTexture;
+            if (rt.width != width || rt.height != height)
+            {
+                rt.Release();
+                rt.width = width;
+                rt.height = height;
+                rt.Create();
+            }
+
+            mat.SetVector("_Bounds", windowBounds);
+            mat.SetVector("_MousePos", mousePos);
+            mat.SetFloat("_MaxOffset", 32f);
+
+            Graphics.Blit(null, rt, mat, 0);
+
+            RenderTexture.active = oldRt;
+            return rt;
         }
     }
     #endif
