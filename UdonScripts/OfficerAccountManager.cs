@@ -9,6 +9,10 @@ using UnityEditor.Graphs;
 using UnityEngine.UI;
 using PlasticPipe.PlasticProtocol.Messages;
 using UnityEditor.PackageManager.UI;
+using Codice.Client.Common;
+using System.Linq;
+
+
 
 
 
@@ -21,6 +25,7 @@ using UnityEditor;
 
 namespace LoliPoliceDepartment.Utilities.AccountManager
 {
+    //-------------------------Custom Enums-------------------------//
     /// <summary>
     /// The source of data for the account manager.
     /// </summary>
@@ -52,12 +57,14 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         LessThanOrEqualTo = 5
     }
 
+
     /// <summary>
     /// Manages officer account data, including loading and parsing data from a remote source.
     /// </summary>
     [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
     public class OfficerAccountManager : UdonSharpBehaviour
     {
+
         //-------------------------Notes-------------------------//
         #region Notes
         //PLEASE NOTE ALL OFFICERS HAVE ALL ROLES IF THIS IS A CSV FILE
@@ -77,6 +84,8 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         /// <summary>
         /// Log the performance of raw data parsing, _CreateRoleList, and _CreateFilteredRoleList 
         /// </summary>
+        [Space]
+        [Tooltip("Log the performance of raw data parsing, _CreateRoleList, and _CreateFilteredRoleList")]
         [SerializeField] private bool performanceLogging = true;
         /// <inheritdoc cref="OfficerAccountManager.performanceLogging"/>
         private System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
@@ -85,9 +94,13 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         /// The raw data representing all of the officers.
         /// Editor/Offline data is stored here and is overwritten by Internet data if any is downloaded at runtime.
         /// </summary>
-        // [HideInInspector]
+        [HideInInspector] // Uncomment this when not debugging
         [SerializeField, Multiline] public string rawOfficerData = "";
-        [Space]
+
+        /// <summary>
+        /// For use by the custom inspector
+        /// </summary>
+        [SerializeField, HideInInspector] internal TextAsset officerDataFile = null;
         
         /// <summary>
         /// The URL for online officer data.
@@ -99,7 +112,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         /// </list>
         /// See <see href="https://creators.vrchat.com/worlds/udon/string-loading/">the official VRChat documentation</see> for more information.
         /// </summary>
-        [SerializeField] private VRCUrl RemoteDataURL = VRCUrl.Empty;
+        [SerializeField] private VRCUrl remoteDataURL = VRCUrl.Empty;
 
         /// <summary>
         /// The preferred location for fetching account data.
@@ -136,7 +149,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         /// A dictionary of UdonBehaviors who wish to be notified when the <see cref="OfficerAccountManager"/> has finished initializing.
         /// Keys are typ <see cref="UdonBehavior"/>, values are the string function names to call on each <see cref="UdonBehavior"/> when the data is ready.
         /// </summary>
-        [NonSerialized] private DataDictionary OnInitializedListeners = new DataDictionary(); //Dictionary of UdonBehaviors and their String function names to be called when the data is ready
+        [NonSerialized] private DataDictionary onInitializedListeners = new DataDictionary(); //Dictionary of UdonBehaviors and their String function names to be called when the data is ready
 
         /// <summary>
         /// A dictionary mapping officer names to their role dictionaries.
@@ -169,9 +182,9 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
             }
 
             //Subscribe
-            if (!OnInitializedListeners.ContainsKey(behaviour))
+            if (!onInitializedListeners.ContainsKey(behaviour))
             {
-                OnInitializedListeners.Add(behaviour, functionName);
+                onInitializedListeners.Add(behaviour, functionName);
             }
             //No duplicates pls thx
             else
@@ -187,9 +200,9 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         /// <param name="behaviour">The <see cref="UdonSharpBehaviour"/> to remove from the listener list.</param>
         public void RemoveListener(UdonSharpBehaviour behaviour)
         {
-            if (OnInitializedListeners.ContainsKey(behaviour))
+            if (onInitializedListeners.ContainsKey(behaviour))
             {
-                OnInitializedListeners.Remove(behaviour);
+                onInitializedListeners.Remove(behaviour);
             }
             else
             {
@@ -226,9 +239,9 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
 
                 case DataSource.Internet:
                     //Request data from the web server
-                    _Log("Fetching officer data from " + RemoteDataURL.Get(), this);
+                    _Log("Fetching officer data from " + remoteDataURL.Get(), this);
                     // currentDataSource = DataSource.Local; //Set later depending on whether the request succeeds
-                    VRCStringDownloader.LoadUrl(RemoteDataURL, (VRC.Udon.Common.Interfaces.IUdonEventReceiver) this);
+                    VRCStringDownloader.LoadUrl(remoteDataURL, (VRC.Udon.Common.Interfaces.IUdonEventReceiver) this);
                     break;
             }
         }
@@ -286,11 +299,11 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
             isReady = true;
 
             //Notify subscribers
-            DataList keys = OnInitializedListeners.GetKeys();
+            DataList keys = onInitializedListeners.GetKeys();
             for (int i = 0; i < keys.Count; i++)
             {
                 UdonSharpBehaviour receiver = (UdonSharpBehaviour)keys[i].Reference;
-                string eventName = OnInitializedListeners[keys[i]].ToString();
+                string eventName = onInitializedListeners[keys[i]].ToString();
                 receiver.SendCustomEvent(eventName);
             }
 
@@ -696,10 +709,25 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         private Texture2D youtubeLogo;
         private Texture2D kofiLogo;
 
-        private Vector2 scrollPos = new Vector2(0, 0);
-        private int mipLevel = 8;
+        private SerializedProperty performanceLogging;
+        private SerializedProperty rawOfficerData;
+        private SerializedProperty officerDataFile;
+        private SerializedProperty RemoteDataURL;
+        private SerializedProperty desiredDataSource;
+        private SerializedProperty dataFormat;
+
+        private void OnEnable() {
+            performanceLogging = serializedObject.FindProperty("performanceLogging");
+            rawOfficerData = serializedObject.FindProperty("rawOfficerData");
+            officerDataFile = serializedObject.FindProperty("officerDataFile");
+            RemoteDataURL = serializedObject.FindProperty("remoteDataURL");
+            desiredDataSource = serializedObject.FindProperty("desiredDataSource");
+            dataFormat = serializedObject.FindProperty("dataFormat");
+        }
 
         public override void OnInspectorGUI() {
+            OfficerAccountManager manager = (OfficerAccountManager)target;
+
             HeaderTexture = HeaderTexture ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/TITLEBAR.png", typeof(Texture2D));
             twitterLogo   = twitterLogo   ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/SocialLogos/TwitterLogo.png", typeof(Texture2D));
             discordLogo   = discordLogo   ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/SocialLogos/DiscordLogo.png", typeof(Texture2D));
@@ -707,17 +735,86 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
             kofiLogo      = kofiLogo      ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/SocialLogos/KofiLogo.png", typeof(Texture2D));
 
 
-            // GUI.DrawTexture(new Rect(0, 0, Screen.width, 128), HeaderTexture, ScaleMode.ScaleToFit);
-            //Get the bounds of this window
-            Vector4 windowBounds = new Vector4(0, 0, Screen.width, Screen.height);
-            //Get the mouse position relative to this window
-            Vector2 mousePos = new Vector2(Screen.width / 2, Screen.height / 2) + new Vector2(Mathf.PingPong(Time.time * 64, 128), 0);
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, 128), HeaderAnimator.GetTexture(Screen.width, 128, windowBounds, mousePos), ScaleMode.ScaleToFit);
-            EditorUtility.SetDirty( target );
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, 128), HeaderTexture, ScaleMode.ScaleToFit);
             GUILayoutUtility.GetRect(Screen.width, 128);
 
-            base.OnInspectorGUI();
-            
+            // base.OnInspectorGUI(); //We do it manually
+
+            //List statistics
+            string csv = manager.rawOfficerData;
+            if (!string.IsNullOrWhiteSpace(csv))
+            {
+                if (manager.dataFormat == DataFormat.CSV)
+                {
+                    using (new GUILayout.HorizontalScope(EditorStyles.helpBox))
+                    {
+                        int rows = csv.Count(c => c == '\n') + 1;
+                        int columns = csv.Substring(0, csv.IndexOf('\n')).Count(c => c == ',') + 1;
+                        GUIStyle style = EditorStyles.boldLabel;
+                        style.alignment = TextAnchor.MiddleCenter;
+                        EditorGUILayout.LabelField("Officers: " + (rows - 1), style);
+                        EditorGUILayout.LabelField("Roles: " + (columns - 1), style);
+                    }
+                }
+                else
+                {
+                    //lol I can't read Json
+                }
+            }
+
+            EditorGUILayout.Space();
+
+            EditorGUI.BeginChangeCheck();
+                EditorGUILayout.PropertyField(desiredDataSource, new GUIContent("Preferred Data Source", "The preferred location for fetching account data."));
+
+                bool online = manager.desiredDataSource == DataSource.Internet;
+                if (online)
+                {
+                    EditorGUILayout.PropertyField(RemoteDataURL, new GUIContent("Remote Data URL", "The URL for online officer data. If users have Untrusted URLs disabled then only the following sources are valid:\n" +
+                                                                                            "GitHub (*.github.io)\n" +
+                                                                                            "Pastebin (pastebin.com)\n" +
+                                                                                            "Github Gist (gist.githubusercontent.com)\n" +
+                                                                                            "See the official VRChat documentation for more information."));
+                }
+                
+                EditorGUI.BeginChangeCheck();
+                    //Officer data file picker
+                    EditorGUILayout.PropertyField(officerDataFile, new GUIContent((online ? "Offline " : "") + "Officer Data File", "The CSV or JSON file containing officer data."));
+                    bool hasOfflineData = manager.officerDataFile != null;
+                    if (!hasOfflineData)
+                    {
+                        if (online)
+                        {
+                            //Warning
+                            EditorGUILayout.HelpBox("No backup data file is selected. If the remote data URL fails to load the account manager will not function.", MessageType.Warning);
+                        }
+                        else
+                        {
+                            //Error
+                            EditorGUILayout.HelpBox("Please select a CSV or JSON file containing officer data.", MessageType.Error);
+                        }
+                    }
+                if (EditorGUI.EndChangeCheck()) {
+                    serializedObject.ApplyModifiedProperties();
+                    //Update the raw data
+                    if (manager.officerDataFile != null) {
+                        manager.rawOfficerData = manager.officerDataFile.text;
+                    }
+                    else
+                    {
+                        manager.rawOfficerData = "";
+                    }
+                }
+
+                EditorGUILayout.PropertyField(dataFormat, new GUIContent("Data Format", "The expected format of the data for parsing."));
+                EditorGUILayout.Space();
+                EditorGUILayout.PropertyField(performanceLogging, new GUIContent("Performance Logging", "Enables performance logging for the account manager. This will print the time it takes to parse the data and generate lists to the console."));
+            if (EditorGUI.EndChangeCheck()) {
+                serializedObject.ApplyModifiedProperties();
+            }
+
+
+
             using (new GUILayout.HorizontalScope())
             {
                 GUI.color = Color.white;
@@ -732,54 +829,6 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                 GUI.backgroundColor = new Color(1f, 0.3137255f, 0.3137255f, 1f);
                 if (GUILayout.Button(new GUIContent(kofiLogo, "Ko-fi"), EditorStyles.miniButtonMid, GUILayout.Width(Screen.width / 4), GUILayout.Height(60))) Application.OpenURL("https://ko-fi.com/lolipolicedepartment");
             }
-        }
-    }
-
-    internal static class HeaderAnimator
-    {
-        private static RenderTexture _rt;
-        public static RenderTexture renderTexture {
-            get {
-                if (_rt == null) {
-                    _rt = new RenderTexture(256, 256, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default);
-                    _rt.filterMode = FilterMode.Point;
-                    _rt.useMipMap = false;
-                    _rt.autoGenerateMips = false;
-                    _rt.Create();
-                }
-                return _rt;
-            }
-        }
-        private static Material _mat;
-        private static Material mat {
-            get {
-                if (_mat == null) {
-                    _mat = (Material)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/BlitMat.mat", typeof(Material));
-                }
-                return _mat;
-            }
-        }
-
-        public static RenderTexture GetTexture(int width, int height, Vector4 windowBounds, Vector2 mousePos)
-        {
-            RenderTexture oldRt = RenderTexture.active;
-            RenderTexture rt = renderTexture;
-            if (rt.width != width || rt.height != height)
-            {
-                rt.Release();
-                rt.width = width;
-                rt.height = height;
-                rt.Create();
-            }
-
-            mat.SetVector("_Bounds", windowBounds);
-            mat.SetVector("_MousePos", mousePos);
-            mat.SetFloat("_MaxOffset", 32f);
-
-            Graphics.Blit(null, rt, mat, 0);
-
-            RenderTexture.active = oldRt;
-            return rt;
         }
     }
     #endif
