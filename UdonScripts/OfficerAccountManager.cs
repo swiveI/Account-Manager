@@ -11,6 +11,10 @@ using PlasticPipe.PlasticProtocol.Messages;
 using UnityEditor.PackageManager.UI;
 using Codice.Client.Common;
 using System.Linq;
+using System.Runtime.Remoting.Messaging;
+using VRC.Udon.Serialization.OdinSerializer;
+
+
 
 
 
@@ -84,7 +88,6 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         /// <summary>
         /// Log the performance of raw data parsing, _CreateRoleList, and _CreateFilteredRoleList 
         /// </summary>
-        [Space]
         [Tooltip("Log the performance of raw data parsing, _CreateRoleList, and _CreateFilteredRoleList")]
         [SerializeField] private bool performanceLogging = true;
         /// <inheritdoc cref="OfficerAccountManager.performanceLogging"/>
@@ -700,10 +703,19 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
 
 
     #if UNITY_EDITOR && !COMPILER_UDONSHARP
+    /// <summary>
+    /// Custom inspector for the <see cref="OfficerAccountManager"/> class.
+    /// </summary>
     [CustomEditor(typeof(OfficerAccountManager))]
     public class OfficerAccountManagerEditor : Editor {
 
-        private Texture2D HeaderTexture;
+        private Texture2D HeaderBG;
+        private Texture2D HeaderLogo;
+        private Texture2D HeaderText;
+        private Texture2D HeaderTape;
+
+
+
         private Texture2D twitterLogo;
         private Texture2D discordLogo;
         private Texture2D youtubeLogo;
@@ -728,46 +740,77 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         public override void OnInspectorGUI() {
             OfficerAccountManager manager = (OfficerAccountManager)target;
 
-            HeaderTexture = HeaderTexture ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/TITLEBAR.png", typeof(Texture2D));
-            twitterLogo   = twitterLogo   ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/SocialLogos/TwitterLogo.png", typeof(Texture2D));
-            discordLogo   = discordLogo   ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/SocialLogos/DiscordLogo.png", typeof(Texture2D));
-            youtubeLogo   = youtubeLogo   ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/SocialLogos/YoutubeLogo.png", typeof(Texture2D));
-            kofiLogo      = kofiLogo      ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/SocialLogos/KofiLogo.png", typeof(Texture2D));
+            HeaderBG    = HeaderBG    ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/Layers/BG.png", typeof(Texture2D));
+            HeaderLogo  = HeaderLogo  ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/Layers/Logo.png", typeof(Texture2D));
+            HeaderText  = HeaderText  ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/Layers/Words.png", typeof(Texture2D));
+            HeaderTape  = HeaderTape  ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/Layers/TapeL1000.png", typeof(Texture2D));
 
+            twitterLogo = twitterLogo ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/SocialLogos/TwitterLogo.png", typeof(Texture2D));
+            discordLogo = discordLogo ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/SocialLogos/DiscordLogo.png", typeof(Texture2D));
+            youtubeLogo = youtubeLogo ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/SocialLogos/YoutubeLogo.png", typeof(Texture2D));
+            kofiLogo    = kofiLogo    ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Resources/SocialLogos/KofiLogo.png", typeof(Texture2D));
 
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, 128), HeaderTexture, ScaleMode.ScaleToFit);
+            float imageAspectRatio = ((float) HeaderBG.width) / ((float) HeaderBG.height);
+            float screenAspectRatio = ((float) Screen.width) / ((float) 128);
+
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, 128), HeaderBG, imageAspectRatio < screenAspectRatio ? ScaleMode.ScaleAndCrop : ScaleMode.StretchToFill);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, 128), HeaderLogo, ScaleMode.ScaleToFit);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, 128), HeaderText, ScaleMode.ScaleToFit);
+            //Offset this to the right of the screen
+            GUI.DrawTexture(new Rect(Screen.width - 256, 0, 512, 128), HeaderTape, ScaleMode.ScaleAndCrop);
+
+            
             GUILayoutUtility.GetRect(Screen.width, 128);
 
             // base.OnInspectorGUI(); //We do it manually
 
+            //Reused variabled
+            bool online = manager.desiredDataSource == DataSource.Internet;
+            bool hasOfflineData = manager.officerDataFile != null;
+
+
             //List statistics
-            string csv = manager.rawOfficerData;
-            if (!string.IsNullOrWhiteSpace(csv))
+            string rawData = manager.rawOfficerData;
+            using (new GUILayout.HorizontalScope(EditorStyles.helpBox))
             {
-                if (manager.dataFormat == DataFormat.CSV)
+                GUIStyle statisticStyle = EditorStyles.boldLabel;
+                statisticStyle.alignment = TextAnchor.MiddleCenter;
+
+                string dataFormat = manager.dataFormat == DataFormat.CSV ? "CSV" : "JSON";
+                if (online)
                 {
-                    using (new GUILayout.HorizontalScope(EditorStyles.helpBox))
+                    if (hasOfflineData)
                     {
-                        int rows = csv.Count(c => c == '\n') + 1;
-                        int columns = csv.Substring(0, csv.IndexOf('\n')).Count(c => c == ',') + 1;
-                        GUIStyle style = EditorStyles.boldLabel;
-                        style.alignment = TextAnchor.MiddleCenter;
-                        EditorGUILayout.LabelField("Officers: " + (rows - 1), style);
-                        EditorGUILayout.LabelField("Roles: " + (columns - 1), style);
+                        EditorGUILayout.LabelField("Using online "+dataFormat+" data with offline backup", statisticStyle);
+                    }
+                    else
+                    {
+                        EditorGUILayout.LabelField("Using online "+dataFormat+" data without offline backup", statisticStyle);
                     }
                 }
                 else
                 {
-                    //lol I can't read Json
+                    if (hasOfflineData)
+                    {
+                        EditorGUILayout.LabelField("Using offline "+dataFormat+" data", statisticStyle);
+                    }
+                    else
+                    {
+                        EditorGUILayout.LabelField("No data file selected", statisticStyle);
+                    }
                 }
             }
+            // //OFFLINE CSV STATISTICS
+            // int rows = rawData.Count(c => c == '\n') + 1;
+            // int columns = rawData.Substring(0, rawData.IndexOf('\n')).Count(c => c == ',') + 1;
+            // EditorGUILayout.LabelField((online ? "Offline " : "") + "Officers: " + (rows - 1), statisticStyle);
+            // EditorGUILayout.LabelField((online ? "Offline " : "") + "Roles: " + (columns - 1), statisticStyle);
 
             EditorGUILayout.Space();
 
             EditorGUI.BeginChangeCheck();
                 EditorGUILayout.PropertyField(desiredDataSource, new GUIContent("Preferred Data Source", "The preferred location for fetching account data."));
 
-                bool online = manager.desiredDataSource == DataSource.Internet;
                 if (online)
                 {
                     EditorGUILayout.PropertyField(RemoteDataURL, new GUIContent("Remote Data URL", "The URL for online officer data. If users have Untrusted URLs disabled then only the following sources are valid:\n" +
@@ -780,7 +823,6 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                 EditorGUI.BeginChangeCheck();
                     //Officer data file picker
                     EditorGUILayout.PropertyField(officerDataFile, new GUIContent((online ? "Offline " : "") + "Officer Data File", "The CSV or JSON file containing officer data."));
-                    bool hasOfflineData = manager.officerDataFile != null;
                     if (!hasOfflineData)
                     {
                         if (online)
@@ -807,27 +849,47 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
                 }
 
                 EditorGUILayout.PropertyField(dataFormat, new GUIContent("Data Format", "The expected format of the data for parsing."));
-                EditorGUILayout.Space();
                 EditorGUILayout.PropertyField(performanceLogging, new GUIContent("Performance Logging", "Enables performance logging for the account manager. This will print the time it takes to parse the data and generate lists to the console."));
             if (EditorGUI.EndChangeCheck()) {
                 serializedObject.ApplyModifiedProperties();
             }
 
-
+            EditorGUILayout.Space();
 
             using (new GUILayout.HorizontalScope())
             {
                 GUI.color = Color.white;
                 GUI.backgroundColor = Color.white;
-                
+                GUIStyle socialLinkStyle = new GUIStyle(EditorStyles.miniButtonMid);
+                socialLinkStyle.fixedHeight = 20;
+
                 GUI.backgroundColor = new Color(0.4509804f, 0.5411765f, 0.8588236f, 1f);
-                if (GUILayout.Button(new GUIContent(discordLogo, "Discord"), EditorStyles.miniButtonMid, GUILayout.Width(Screen.width / 4), GUILayout.Height(60))) Application.OpenURL("https://discord.gg/lpd");
+                if (GUILayout.Button(new GUIContent(discordLogo, "Discord"), socialLinkStyle, GUILayout.Width(Screen.width / 4))) Application.OpenURL("https://discord.gg/lpd");
                 GUI.backgroundColor = new Color(0.1137255f, 0.6313726f, 0.9490196f, 1f);
-                if (GUILayout.Button(new GUIContent(twitterLogo, "Twitter"), EditorStyles.miniButtonMid, GUILayout.Width(Screen.width / 4), GUILayout.Height(60))) Application.OpenURL("https://twitter.com/LPD_vrchat");
+                if (GUILayout.Button(new GUIContent(twitterLogo, "Twitter"), socialLinkStyle, GUILayout.Width(Screen.width / 4))) Application.OpenURL("https://twitter.com/LPD_vrchat");
                 GUI.backgroundColor = new Color(0.8039216f, 0.1254902f, 0.1215686f, 1f);
-                if (GUILayout.Button(new GUIContent(youtubeLogo, "Youtube"), EditorStyles.miniButtonMid, GUILayout.Width(Screen.width / 4), GUILayout.Height(60))) Application.OpenURL("https://www.youtube.com/c/LoliPoliceDepartment");
+                if (GUILayout.Button(new GUIContent(youtubeLogo, "Youtube"), socialLinkStyle, GUILayout.Width(Screen.width / 4))) Application.OpenURL("https://www.youtube.com/c/LoliPoliceDepartment");
                 GUI.backgroundColor = new Color(1f, 0.3137255f, 0.3137255f, 1f);
-                if (GUILayout.Button(new GUIContent(kofiLogo, "Ko-fi"), EditorStyles.miniButtonMid, GUILayout.Width(Screen.width / 4), GUILayout.Height(60))) Application.OpenURL("https://ko-fi.com/lolipolicedepartment");
+                if (GUILayout.Button(new GUIContent(kofiLogo, "Ko-fi")     , socialLinkStyle, GUILayout.Width(Screen.width / 4))) Application.OpenURL("https://ko-fi.com/lolipolicedepartment");
+            }
+        }
+
+        [MenuItem("LPD/Account Manager")]
+        public static void AddToSceneMenu()
+        {
+            bool exists = Component.FindObjectOfType<OfficerAccountManager>();
+            if (exists)
+            {
+                //Select it, ping it, and return
+                OfficerAccountManager amInstance = Component.FindObjectOfType<OfficerAccountManager>();
+                Selection.activeObject = amInstance;
+                EditorGUIUtility.PingObject(amInstance);
+                return;
+            }
+            else
+            {
+                GameObject am = (GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath("Packages/com.lolipolicedepartment.accountmanager/Officer Account Manager.prefab", typeof(GameObject)));
+                PrefabUtility.UnpackPrefabInstance(am, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
             }
         }
     }

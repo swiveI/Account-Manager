@@ -1093,7 +1093,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 10302, guid: 0000000000000000f000000000000000, type: 0}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1511,8 +1511,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   launchedFromSDKPipeline: 0
   completedSDKPipeline: 0
-  blueprintId: 
-  contentType: 0
+  blueprintId: wrld_717092d5-afaa-4de9-9ed0-a8a8dcf74794
+  contentType: 1
   assetBundleUnityVersion: 
   fallbackStatus: 0
 --- !u!114 &1583840360
@@ -1535,16 +1535,17 @@ MonoBehaviour:
   RespawnHeightY: -100
   ObjectBehaviourAtRespawnHeight: 0
   ForbidUserPortals: 0
+  interactThruLayers: 0
   autoSpatializeAudioSources: 0
   gravity: {x: 0, y: -9.81, z: 0}
-  layerCollisionArr: 
+  layerCollisionArr: 01010101010001010101010100010001010101010101010101010101010101010101010101000101010101010001000101010101010101010101010101010101010101010100010101010101000100010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101000101010101010001000101010101010101010101010101010101000000010000010100000000000000000000000000000101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010100010101010101000100010101010101010101010101010101010101010101010001010100000100000000000001010101010101010101010101010101010101000101010000010000000000000101010101010101010101010101010101010100010101010101000100010101010101010101010101010101010100000001000001010000000000000000000000000000010101010101010101010101010101000101010000010001010101010000000001010101010101010101000000010000010100000000000100000000000000000101010101010101010101010101010001010100000100010001010101010101010101010101010101010101010101000101010000010001000101010101010101010101010101010101010101010100010101000001000100010101010101010101010101010101010101010101010001010101010100000001010101010101010101010101010101010101010101000101010101010000000101010101010101010101010101010101010101010100010101010101000000010101010101010101010101010101010101010101010001010101010100000001010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101
   capacity: 0
   contentSex: 0
   contentViolence: 0
   contentGore: 0
   contentOther: 0
   releasePublic: 0
-  unityVersion: 
+  unityVersion: 2019.4.31f1
   Name: 
   NSFW: 0
   SpawnPosition: {x: 0, y: 0, z: 0}
@@ -1552,7 +1553,8 @@ MonoBehaviour:
   DrawDistance: 0
   useAssignedLayers: 0
   DynamicPrefabs: []
-  DynamicMaterials: []
+  DynamicMaterials:
+  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
   LightMapsNear: []
   LightMapsFar: []
   LightMode: 0
@@ -1605,7 +1607,17 @@ MonoBehaviour:
   RenderReflectionBounces: 0
   RenderReflectionIntensity: 0
   RenderSkybox: {fileID: 0}
-  NetworkIDs: []
+  NetworkIDs:
+  - gameObject: {fileID: 8576951140502956642}
+    ID: 10
+  - gameObject: {fileID: 917917084}
+    ID: 11
+  - gameObject: {fileID: 1250539246}
+    ID: 12
+  - gameObject: {fileID: 884611423}
+    ID: 13
+  - gameObject: {fileID: 1681593181}
+    ID: 14
   portraitCameraPositionOffset: {x: 0, y: 0, z: 0}
   portraitCameraRotationOffset: {x: 0, y: 1, z: 0, w: -0.00000004371139}
 --- !u!4 &1583840361
@@ -1924,237 +1936,28 @@ MonoBehaviour:
     Prefab: {fileID: 0}
     PrefabModificationsReferencedUnityObjects: []
     PrefabModifications: []
-    SerializationNodes:
-    - Name: OfficerData
-      Entry: 7
-      Data: 0|System.String[][], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 5
-    - Name: 
-      Entry: 7
-      Data: 1|System.String[], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 9
-    - Name: 
-      Entry: 1
-      Data: 0
-    - Name: 
-      Entry: 1
-      Data: 4liceD
-    - Name: 
-      Entry: 1
-      Data: ???
-    - Name: 
-      Entry: 1
-      Data: True
-    - Name: 
-      Entry: 1
-      Data: False
-    - Name: 
-      Entry: 1
-      Data: False
-    - Name: 
-      Entry: 1
-      Data: False
-    - Name: 
-      Entry: 1
-      Data: True
-    - Name: 
-      Entry: 1
-      Data: "False\r"
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 2|System.String[], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 9
-    - Name: 
-      Entry: 1
-      Data: 1
-    - Name: 
-      Entry: 1
-      Data: Chanoler
-    - Name: 
-      Entry: 1
-      Data: Horse
-    - Name: 
-      Entry: 1
-      Data: True
-    - Name: 
-      Entry: 1
-      Data: False
-    - Name: 
-      Entry: 1
-      Data: False
-    - Name: 
-      Entry: 1
-      Data: Garbage
-    - Name: 
-      Entry: 1
-      Data: False
-    - Name: 
-      Entry: 1
-      Data: "True\r"
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 3|System.String[], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 9
-    - Name: 
-      Entry: 1
-      Data: 2
-    - Name: 
-      Entry: 1
-      Data: Cody
-    - Name: 
-      Entry: 1
-      Data: Princess
-    - Name: 
-      Entry: 1
-      Data: True
-    - Name: 
-      Entry: 1
-      Data: False
-    - Name: 
-      Entry: 1
-      Data: False
-    - Name: 
-      Entry: 1
-      Data: True
-    - Name: 
-      Entry: 1
-      Data: False
-    - Name: 
-      Entry: 1
-      Data: "True\r"
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 4|System.String[], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 9
-    - Name: 
-      Entry: 1
-      Data: 3
-    - Name: 
-      Entry: 1
-      Data: Karet
-    - Name: 
-      Entry: 1
-      Data: Cat probably
-    - Name: 
-      Entry: 1
-      Data: True
-    - Name: 
-      Entry: 1
-      Data: True
-    - Name: 
-      Entry: 1
-      Data: True
-    - Name: 
-      Entry: 1
-      Data: True
-    - Name: 
-      Entry: 1
-      Data: False
-    - Name: 
-      Entry: 1
-      Data: "True\r"
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 5|System.String[], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 9
-    - Name: 
-      Entry: 1
-      Data: 4
-    - Name: 
-      Entry: 1
-      Data: Pesky12
-    - Name: 
-      Entry: 1
-      Data: Bird
-    - Name: 
-      Entry: 1
-      Data: True
-    - Name: 
-      Entry: 1
-      Data: False
-    - Name: 
-      Entry: 1
-      Data: False
-    - Name: 
-      Entry: 1
-      Data: False
-    - Name: 
-      Entry: 1
-      Data: True
-    - Name: 
-      Entry: 1
-      Data: "True\r"
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: CustomLists
-      Entry: 7
-      Data: 6|System.Int32[][], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 0
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
+    SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 8576951140502956637}
-  RoleNames:
-  - ID
-  - Name
-  - Species
-  - Staff
-  - Admin
-  - Moderator
-  - GroupA
-  - GroupB
-  - "GroupC\r"
+  performanceLogging: 1
+  rawOfficerData: 'Name,Species,Staff,Admin,Moderator,GroupA,GroupB,GroupC
+
+    Karet,Cat
+    probably,True,True,True,True,False,True
+
+    Chanoler,Horse,True,False,False,Garbage,False,True
+
+    Pesky12,Bird,True,False,False,False,True,True
+
+    Cody,Princess,True,False,False,True,False,True
+
+    4liceD,???,True,False,False,False,True,False
+
+'
+  officerDataFile: {fileID: 4900000, guid: 9f6b9f33460bdbb4bab381a3ac1ff81e, type: 3}
+  remoteDataURL:
+    url: https://raw.githubusercontent.com/swiveI/Account-Manager/main/Example/ExampleData.csv
+  desiredDataSource: 1
+  dataFormat: 0
 --- !u!4 &8576951140502956636
 Transform:
   m_ObjectHideFlags: 0
