@@ -5,22 +5,6 @@ using VRC.Udon;
 using System;
 using VRC.SDK3.StringLoading;
 using VRC.SDK3.Data;
-using UnityEditor.Graphs;
-using UnityEngine.UI;
-using PlasticPipe.PlasticProtocol.Messages;
-using UnityEditor.PackageManager.UI;
-using Codice.Client.Common;
-using System.Linq;
-using System.Runtime.Remoting.Messaging;
-using VRC.Udon.Serialization.OdinSerializer;
-
-
-
-
-
-
-
-
 
 #if UNITY_EDITOR && !COMPILER_UDONSHARP
 using UnityEditor;
