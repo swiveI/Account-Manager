@@ -14,7 +14,7 @@
     "url": "https://discord.gg/lpd"
   },
   "vpmDependencies" : {
-    "com.vrchat.base" : "3.4.0",
-    "com.vrchat.worlds" : "3.4.0"
+    "com.vrchat.base" : "^3.4",
+    "com.vrchat.worlds" : "^3.4"
   }
 }
