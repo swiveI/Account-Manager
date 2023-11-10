@@ -99,7 +99,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         /// </list>
         /// See <see href="https://creators.vrchat.com/worlds/udon/string-loading/">the official VRChat documentation</see> for more information.
         /// </summary>
-        [SerializeField] private VRCUrl remoteDataURL = VRCUrl.Empty;
+        [SerializeField] private VRCUrl _remoteDataURL;
 
         /// <summary>
         /// The preferred location for fetching account data.
@@ -226,10 +226,10 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
 
                 case DataSource.Internet:
                     //Request data from the web server
-                    _Log("Fetching officer data from " + remoteDataURL.Get(), this);
+                    _Log("Fetching officer data from " + _remoteDataURL.Get(), this);
                     // currentDataSource = DataSource.Local; //Set later depending on whether the request succeeds
                     stopwatch.Restart();
-                    VRCStringDownloader.LoadUrl(remoteDataURL, (VRC.Udon.Common.Interfaces.IUdonEventReceiver) this);
+                    VRCStringDownloader.LoadUrl(_remoteDataURL, (VRC.Udon.Common.Interfaces.IUdonEventReceiver) this);
                     break;
             }
         }
@@ -711,7 +711,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         private SerializedProperty performanceLogging;
         private SerializedProperty rawOfficerData;
         private SerializedProperty officerDataFile;
-        private SerializedProperty RemoteDataURL;
+        private SerializedProperty _RemoteDataURL;
         private SerializedProperty desiredDataSource;
         private SerializedProperty dataFormat;
 
@@ -719,7 +719,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
             performanceLogging = serializedObject.FindProperty("performanceLogging");
             rawOfficerData = serializedObject.FindProperty("rawOfficerData");
             officerDataFile = serializedObject.FindProperty("officerDataFile");
-            RemoteDataURL = serializedObject.FindProperty("remoteDataURL");
+            _RemoteDataURL = serializedObject.FindProperty("_remoteDataURL");
             desiredDataSource = serializedObject.FindProperty("desiredDataSource");
             dataFormat = serializedObject.FindProperty("dataFormat");
         }
@@ -801,7 +801,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
 
                 if (online)
                 {
-                    EditorGUILayout.PropertyField(RemoteDataURL, new GUIContent("Remote Data URL", "The URL for online officer data. If users have Untrusted URLs disabled then only the following sources are valid:\n" +
+                    EditorGUILayout.PropertyField(_RemoteDataURL, new GUIContent("Remote Data URL", "The URL for online officer data. If users have Untrusted URLs disabled then only the following sources are valid:\n" +
                                                                                             "GitHub (*.github.io)\n" +
                                                                                             "Pastebin (pastebin.com)\n" +
                                                                                             "Github Gist (gist.githubusercontent.com)\n" +
