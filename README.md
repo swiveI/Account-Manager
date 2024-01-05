@@ -1,6 +1,9 @@
 # Account-Manager
 Account manager is a tool for converting spreadsheet data, via csv, into arrays for easy access by `Udonbehaviours` within VRChat.
 
+### [Add Account Manager to VRC Creator Companion](https://swivei.github.io/Account-Manager/)
+
+
 This tool was originally built for the Loli Police Department roleplay group in VRChat. No affiliation with any actual law enforcement agency. discord.gg/lpd
 
 This tool is designed to handle tracking player data via spreadsheets and bringing that data into VRChat. 
