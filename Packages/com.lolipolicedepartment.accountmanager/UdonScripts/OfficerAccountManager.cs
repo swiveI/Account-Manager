@@ -75,6 +75,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         [Tooltip("Log the performance of raw data parsing, _CreateRoleList, and _CreateFilteredRoleList")]
         [SerializeField] private bool performanceLogging = true;
         /// <inheritdoc cref="OfficerAccountManager.performanceLogging"/>
+        [SerializeField] private bool urlLogging = false;
         private System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
 
         /// <summary>
@@ -226,7 +227,14 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
 
                 case DataSource.Internet:
                     //Request data from the web server
-                    _Log("Fetching officer data from " + _remoteDataURL.Get(), this);
+                    if (urlLogging)
+                    {
+                        _Log("Fetching officer data from " + _remoteDataURL.Get(), this);
+                    }
+                    else
+                    {
+                        _Log("Loading", this);
+                    }
                     // currentDataSource = DataSource.Local; //Set later depending on whether the request succeeds
                     stopwatch.Restart();
                     VRCStringDownloader.LoadUrl(_remoteDataURL, (VRC.Udon.Common.Interfaces.IUdonEventReceiver) this);
@@ -245,7 +253,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
 
             //Overwrite the offline data and continue initializing
             rawOfficerData = result.Result;
-            _Log("Officer data downloaded successfully in " + stopwatch.ElapsedMilliseconds + " ms", this);
+            _Log("Officer data loaded successfully in " + stopwatch.ElapsedMilliseconds + " ms", this);
             currentDataSource = DataSource.Internet;
             initializedSuccessfully = true;
             DataReady();
@@ -712,6 +720,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
         private SerializedProperty rawOfficerData;
         private SerializedProperty officerDataFile;
         private SerializedProperty _RemoteDataURL;
+        private SerializedProperty urlLogging;
         private SerializedProperty desiredDataSource;
         private SerializedProperty dataFormat;
 
@@ -720,6 +729,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
             rawOfficerData = serializedObject.FindProperty("rawOfficerData");
             officerDataFile = serializedObject.FindProperty("officerDataFile");
             _RemoteDataURL = serializedObject.FindProperty("_remoteDataURL");
+            urlLogging = serializedObject.FindProperty("urlLogging");
             desiredDataSource = serializedObject.FindProperty("desiredDataSource");
             dataFormat = serializedObject.FindProperty("dataFormat");
         }
@@ -838,6 +848,7 @@ namespace LoliPoliceDepartment.Utilities.AccountManager
 
                 EditorGUILayout.PropertyField(dataFormat, new GUIContent("Data Format", "The expected format of the data for parsing."));
                 EditorGUILayout.PropertyField(performanceLogging, new GUIContent("Performance Logging", "Enables performance logging for the account manager. This will print the time it takes to parse the data and generate lists to the console."));
+                EditorGUILayout.PropertyField(urlLogging, new GUIContent("URL Logging", "Parse URL used for Stringloading into the logfiles"));
             if (EditorGUI.EndChangeCheck()) {
                 serializedObject.ApplyModifiedProperties();
             }
