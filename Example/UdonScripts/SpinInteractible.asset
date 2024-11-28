@@ -12,16 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c333ccfdd0cbdbc4ca30cef2dd6e6b9b, type: 3}
   m_Name: SpinInteractible
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: aabb53dc2b9542c469240a1042b0a02e,
-    type: 2}
+  serializedUdonProgramAsset: {fileID: 11400000, guid: 01cd96eb406990942bcaae08334e9189, type: 2}
   udonAssembly: 
   assemblyError: 
-  sourceCsScript: {fileID: 11500000, guid: 1d23cbc3ec8d70041bb4581dde4ed8c6, type: 3}
+  sourceCsScript: {fileID: 11500000, guid: 6f4001f13142eac47a542748cab32271, type: 3}
   scriptVersion: 2
   compiledVersion: 2
   behaviourSyncMode: 0
   hasInteractEvent: 1
-  scriptID: 5779071593444069289
+  scriptID: 6873670415744878472
   serializationData:
     SerializedFormat: 2
     SerializedBytes: 

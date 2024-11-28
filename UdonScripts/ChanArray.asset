@@ -12,11 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c333ccfdd0cbdbc4ca30cef2dd6e6b9b, type: 3}
   m_Name: ChanArray
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: ad0c64c043cedff46ab0263f09d064a0,
-    type: 2}
+  serializedUdonProgramAsset: {fileID: 11400000, guid: d2c677e8667db4542bd05fbdfaae286f, type: 2}
   udonAssembly: 
   assemblyError: 
-  sourceCsScript: {fileID: 11500000, guid: 4325affc27b6d9042aa95f4e0ff24f03, type: 3}
+  sourceCsScript: {fileID: 11500000, guid: 0df69a57232391145906e855d6af4e7c, type: 3}
   scriptVersion: 2
   compiledVersion: 2
   behaviourSyncMode: 0

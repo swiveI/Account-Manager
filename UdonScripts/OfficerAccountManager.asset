@@ -12,16 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c333ccfdd0cbdbc4ca30cef2dd6e6b9b, type: 3}
   m_Name: OfficerAccountManager
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: aaa2186b7789d5a4496e143eb9df9522,
-    type: 2}
+  serializedUdonProgramAsset: {fileID: 11400000, guid: 3c9fe42bb86201241992163bf07f6a42, type: 2}
   udonAssembly: 
   assemblyError: 
-  sourceCsScript: {fileID: 11500000, guid: e06c18f53cf4c9b4581dee4c5b592420, type: 3}
+  sourceCsScript: {fileID: 11500000, guid: c121e725f5c84c3449c57d9db761d1cd, type: 3}
   scriptVersion: 2
   compiledVersion: 2
   behaviourSyncMode: 1
   hasInteractEvent: 0
-  scriptID: 5988722783255402539
+  scriptID: -3283600391633747370
   serializationData:
     SerializedFormat: 2
     SerializedBytes: 
@@ -314,13 +313,13 @@ MonoBehaviour:
       Data: 
     - Name: $k
       Entry: 1
-      Data: remoteDataURL
+      Data: _remoteDataURL
     - Name: $v
       Entry: 7
       Data: 21|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
     - Name: <Name>k__BackingField
       Entry: 1
-      Data: remoteDataURL
+      Data: _remoteDataURL
     - Name: <UserType>k__BackingField
       Entry: 7
       Data: 22|System.RuntimeType, mscorlib
@@ -386,7 +385,7 @@ MonoBehaviour:
       Data: 26|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: LoliPoliceDepartment.Utilities.AccountManager.DataSource, LoliPoliceDepartment.Utilities.AccountManager.Udon
+      Data: LocalPoliceDepartment.Utilities.AccountManager.DataSource, LocalPoliceDepartment.Utilities.AccountManager.Udon
     - Name: 
       Entry: 8
       Data: 
@@ -512,7 +511,7 @@ MonoBehaviour:
       Data: 35|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: LoliPoliceDepartment.Utilities.AccountManager.DataFormat, LoliPoliceDepartment.Utilities.AccountManager.Udon
+      Data: LocalPoliceDepartment.Utilities.AccountManager.DataFormat, LocalPoliceDepartment.Utilities.AccountManager.Udon
     - Name: 
       Entry: 8
       Data: 

@@ -18,7 +18,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 
-namespace LoliPoliceDepartment.Utilities
+namespace LocalPoliceDepartment.Utilities
 {
     public class OfficerData : MonoBehaviour
     {

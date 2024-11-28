@@ -12,16 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c333ccfdd0cbdbc4ca30cef2dd6e6b9b, type: 3}
   m_Name: RestrictionIndicator
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: 9aa273ea495ec3e4d997b419b77144b3,
-    type: 2}
+  serializedUdonProgramAsset: {fileID: 11400000, guid: 1372a69b4138b6f41ac1541f6c0a9c6e, type: 2}
   udonAssembly: 
   assemblyError: 
-  sourceCsScript: {fileID: 11500000, guid: c01de4191003ab34ab1eaaeae1809e68, type: 3}
+  sourceCsScript: {fileID: 11500000, guid: b15c87127888f7c4cab9a00f6bfe1687, type: 3}
   scriptVersion: 2
   compiledVersion: 2
   behaviourSyncMode: 0
   hasInteractEvent: 0
-  scriptID: -923628137391329891
+  scriptID: -6538796727838023440
   serializationData:
     SerializedFormat: 2
     SerializedBytes: 
@@ -62,8 +61,8 @@ MonoBehaviour:
       Data: 3|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: LoliPoliceDepartment.Utilities.AccountManager.OfficerAccountManager,
-        LoliPoliceDepartment.Utilities.AccountManager.Udon
+      Data: LocalPoliceDepartment.Utilities.AccountManager.OfficerAccountManager,
+        LocalPoliceDepartment.Utilities.AccountManager.Udon
     - Name: 
       Entry: 8
       Data: 

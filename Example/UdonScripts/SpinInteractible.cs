@@ -4,7 +4,7 @@ using UnityEngine;
 using VRC.SDKBase;
 using VRC.Udon;
 
-namespace LoliPoliceDepartment.Examples
+namespace LocalPoliceDepartment.Examples
 {
     public class SpinInteractible : UdonSharpBehaviour
     {

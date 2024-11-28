@@ -3,9 +3,9 @@ using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
 using VRC.Udon;
-using LoliPoliceDepartment.Utilities.AccountManager;
+using LocalPoliceDepartment.Utilities.AccountManager;
 
-namespace LoliPoliceDepartment.Examples
+namespace LocalPoliceDepartment.Examples
 {
     public class RestrictionIndicator : UdonSharpBehaviour
     {
