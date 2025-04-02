@@ -12,10 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c333ccfdd0cbdbc4ca30cef2dd6e6b9b, type: 3}
   m_Name: AccountManagerLogger
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: 37133999375ea564b9cc06611d874f40, type: 2}
+  serializedUdonProgramAsset: {fileID: 11400000, guid: 6e51eea6bd55678428c51072f88f7225, type: 2}
   udonAssembly: 
   assemblyError: 
-  sourceCsScript: {fileID: 11500000, guid: 0cde37a30a8b4444da170ef96845c96f, type: 3}
+  sourceCsScript: {fileID: 11500000, guid: 789563a66c3716e44b9b9907c3e9b3fe, type: 3}
   scriptVersion: 2
   compiledVersion: 2
   behaviourSyncMode: 0

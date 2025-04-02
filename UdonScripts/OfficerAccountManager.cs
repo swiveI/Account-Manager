@@ -3,6 +3,9 @@ using UnityEngine;
 using VRC.SDKBase;
 using VRC.Udon;
 using System;
+using System.Text;
+using System.Security.Cryptography;
+using System.IO;
 using VRC.SDK3.StringLoading;
 using VRC.SDK3.Data;
 
@@ -147,6 +150,223 @@ namespace LocalPoliceDepartment.Utilities.AccountManager
         /// An unsorted list of all role names.
         /// </summary>
         [NonSerialized] public DataList roleList = new DataList();
+
+        [SerializeField] private bool _enableSecureLoading = false;
+        [SerializeField] private string _dataSignature = "";
+        [SerializeField] private bool _securityDebugLogging = false;
+        [NonSerialized] private readonly string[] _obf = new string[] { "trn", "dec", "val", "chk", "prs" };
+        [NonSerialized] private byte[] _secureBuffer;
+        [NonSerialized] private int[] _sBox;
+        private const int N = 256;
+
+        private void InitSBox(byte[] key)
+        {
+            if (_sBox == null)
+            {
+                _sBox = new int[N];
+            }
+            
+            for (int i = 0; i < N; i++)
+            {
+                _sBox[i] = i;
+            }
+            
+            int j = 0;
+            for (int i = 0; i < N; i++)
+            {
+                j = (j + _sBox[i] + key[i % key.Length]) % N;
+                int temp = _sBox[i];
+                _sBox[i] = _sBox[j];
+                _sBox[j] = temp;
+            }
+        }
+
+        private byte[] GenerateKeystream(int length)
+        {
+            byte[] keystream = new byte[length];
+            int i = 0, j = 0;
+            
+            for (int k = 0; k < length; k++)
+            {
+                i = (i + 1) % N;
+                j = (j + _sBox[i]) % N;
+                int temp = _sBox[i];
+                _sBox[i] = _sBox[j];
+                _sBox[j] = temp;
+                int t = (_sBox[i] + _sBox[j]) % N;
+                keystream[k] = (byte)_sBox[t];
+            }
+            
+            return keystream;
+        }
+
+        private byte[] FeistelTransform(byte[] data, byte[] key, bool encrypt)
+        {
+            int rounds = 16;
+            int blockSize = 8;
+            int length = data.Length - (data.Length % blockSize);
+            byte[] result = new byte[length];
+            for (int block = 0; block < length; block += blockSize)
+            {
+                int leftStart = block;
+                int rightStart = block + (blockSize / 2);
+                for (int round = 0; round < rounds; round++)
+                {
+                    int keyRotation = encrypt ? round : (rounds - 1 - round);
+                    for (int i = 0; i < blockSize / 2; i++)
+                    {
+                        byte temp = data[rightStart + i];
+                        byte keyByte = key[(i + keyRotation) % key.Length];
+                        byte substituted = (byte)_sBox[temp];
+                        result[leftStart + i] = (byte)(data[leftStart + i] ^ (substituted + keyByte));
+                    }
+                    if (round < rounds - 1)
+                    {
+                        for (int i = 0; i < blockSize / 2; i++)
+                        {
+                            byte temp = data[leftStart + i];
+                            data[leftStart + i] = data[rightStart + i];
+                            data[rightStart + i] = temp;
+                        }
+                    }
+                }
+            }
+            
+            return result;
+        }
+
+        private byte[] CustomHash(byte[] data)
+        {
+            byte[] hash = new byte[32];
+            if (data.Length == 0) return hash;
+            int seed = data.Length;
+            for (int i = 0; i < 32; i++)
+            {
+                hash[i] = (byte)(seed % 256);
+                seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+            }
+            for (int i = 0; i < data.Length; i++)
+            {
+                byte b = data[i];
+                for (int j = 0; j < 32; j++)
+                {
+                    hash[j] = (byte)(hash[j] ^ 
+                        ((hash[(j + 1) % 32] + b) * (i + 1)) ^
+                        (hash[(j + 7) % 32] >> 1) ^
+                        (hash[(j + 13) % 32] << 1));
+                }
+            }
+            return hash;
+        }
+
+        private string _t(string input) => _decryptData(input);
+        private string _decryptData(string input)
+        {
+            if (!_enableSecureLoading || string.IsNullOrEmpty(input)) 
+            {
+                if (_securityDebugLogging)
+                    _LogSecurityStatus("Security disabled or empty input, skipping decryption");
+                return input;
+            }
+            byte[] data;
+            if (!_v(input, out data)) 
+            {
+                if (_securityDebugLogging)
+                    _LogSecurityStatus("Validation failed: Data format invalid");
+                return input;
+            }
+            if (_securityDebugLogging)
+            {
+                _LogSecurityStatus("Beginning decryption of " + data.Length + " bytes");
+            }
+            byte[] salt = new byte[32];
+            byte[] encryptedData = new byte[data.Length - 64];
+            byte[] storedHash = new byte[32];
+            System.Array.Copy(data, 0, salt, 0, 32);
+            System.Array.Copy(data, 32, storedHash, 0, 32);
+            System.Array.Copy(data, 64, encryptedData, 0, data.Length - 64);
+            if (_securityDebugLogging)
+            {
+                _LogSecurityStatus("Salt extracted: " + BytesToHex(salt, 8) + "...");
+                _LogSecurityStatus("Stored hash: " + BytesToHex(storedHash, 8) + "...");
+                _LogSecurityStatus("Encrypted data length: " + encryptedData.Length + " bytes");
+            }
+            byte[] keyBase = Encoding.UTF8.GetBytes(_dataSignature);
+            byte[] derivedKey = new byte[32];
+            for (int i = 0; i < 32; i++)
+                derivedKey[i] = (byte)(keyBase[i % keyBase.Length] ^ salt[i]);
+            if (_securityDebugLogging) _LogSecurityStatus("Derived key: " + BytesToHex(derivedKey, 8) + "...");
+            InitSBox(derivedKey);
+            byte[] keystream = GenerateKeystream(encryptedData.Length);
+            if (_securityDebugLogging) _LogSecurityStatus("Keystream: " + BytesToHex(keystream, 8) + "...");
+            byte[] intermediate = new byte[encryptedData.Length];
+            for (int i = 0; i < encryptedData.Length; i++)
+                intermediate[i] = (byte)(encryptedData[i] ^ keystream[i]);
+            if (_securityDebugLogging) _LogSecurityStatus("First layer XOR complete");
+            byte[] decrypted = FeistelTransform(intermediate, derivedKey, false);
+            if (_securityDebugLogging) _LogSecurityStatus("Feistel transform complete");
+            byte[] computedHash = CustomHash(decrypted);
+            bool hashMatch = true;
+            for (int i = 0; i < 32; i++)
+            {
+                if (computedHash[i] != storedHash[i])
+                {
+                    hashMatch = false;
+                    break;
+                }
+            }
+            if (!hashMatch)
+            {
+                _LogError("Data integrity check failed - possible tampering detected");
+                if (_securityDebugLogging)
+                {
+                    _LogSecurityStatus("Hash verification failed");
+                    _LogSecurityStatus("Expected: " + BytesToHex(storedHash, 8) + "...");
+                    _LogSecurityStatus("Computed: " + BytesToHex(computedHash, 8) + "...");
+                }
+                return "";
+            }
+            if (_securityDebugLogging)
+            {
+                _LogSecurityStatus("Hash verification successful");
+                _LogSecurityStatus("Decryption complete, returning " + decrypted.Length + " bytes of plaintext");
+            }
+            return Encoding.UTF8.GetString(decrypted);
+        }
+
+        // Helper method to convert bytes to hex string for debugging
+        private string BytesToHex(byte[] bytes, int maxLength = 0)
+        {
+            if (bytes == null || bytes.Length == 0)
+                return "";
+                
+            int length = maxLength > 0 && maxLength < bytes.Length ? maxLength : bytes.Length;
+            string hex = "";
+            
+            for (int i = 0; i < length; i++)
+            {
+                hex += bytes[i].ToString("X2");
+            }
+            
+            return hex;
+        }
+
+        private bool _v(string data, out byte[] decoded)
+        {
+            decoded = null;
+            if (!_enableSecureLoading) return true;
+            
+            if (string.IsNullOrEmpty(data)) return false;
+            
+            decoded = Convert.FromBase64String(data);
+            return decoded.Length >= 96;
+        }
+
+        private bool _v(string data)
+        {
+            byte[] decoded;
+            return _v(data, out decoded);
+        }
         #endregion       
 
 
@@ -219,6 +439,17 @@ namespace LocalPoliceDepartment.Utilities.AccountManager
                 case DataSource.Editor:
                     //We are using offline data, it is already ready
                     _Log("Using offline data", this);
+                    
+                    // Apply decryption to offline data if security is enabled
+                    if (_enableSecureLoading)
+                    {
+                        if (_securityDebugLogging)
+                        {
+                            _LogSecurityStatus("Applying decryption to offline data");
+                        }
+                        rawOfficerData = _t(rawOfficerData);
+                    }
+                    
                     currentDataSource = DataSource.Editor;
                     initializedSuccessfully = true;
                     DataReady();
@@ -242,10 +473,28 @@ namespace LocalPoliceDepartment.Utilities.AccountManager
         public override void OnStringLoadSuccess(IVRCStringDownload result)
         {
             stopwatch.Stop();
+            
+            string loadedData = result.Result;
+            
+            // Verify data integrity
+            if (_enableSecureLoading && !_v(loadedData))
+            {
+                _LogError("Downloaded data failed integrity check - possible MITM attack");
+                OnStringLoadError(result);
+                return;
+            }
 
-            //Overwrite the offline data and continue initializing
-            rawOfficerData = result.Result;
-            _Log("Officer data downloaded successfully in " + stopwatch.ElapsedMilliseconds + " ms", this);
+            // Transform/decrypt the data
+            rawOfficerData = _t(loadedData);
+            
+            if (string.IsNullOrEmpty(rawOfficerData))
+            {
+                _LogError("Data decryption failed - check security key");
+                OnStringLoadError(result);
+                return;
+            }
+
+            _Log("Officer data downloaded and processed successfully in " + stopwatch.ElapsedMilliseconds + " ms", this);
             currentDataSource = DataSource.Internet;
             initializedSuccessfully = true;
             DataReady();
@@ -284,6 +533,33 @@ namespace LocalPoliceDepartment.Utilities.AccountManager
                 _Log("Parsing took " + stopwatch.ElapsedMilliseconds + "ms", this);
             }
 
+            // Log statistics about loaded data
+            int officerCount = nameToRankDictionary.Count;
+            DataList allRolesList = new DataList();
+            
+            // Gather unique roles from all officers
+            DataList officerNames = nameToRankDictionary.GetKeys();
+            for (int i = 0; i < officerNames.Count; i++)
+            {
+                DataToken officerRoles = nameToRankDictionary[officerNames[i]];
+                DataList roleKeys = officerRoles.DataDictionary.GetKeys();
+                
+                for (int j = 0; j < roleKeys.Count; j++)
+                {
+                    string roleName = roleKeys[j].String;
+                    if (!allRolesList.Contains(roleName))
+                    {
+                        allRolesList.Add(roleName);
+                    }
+                }
+            }
+            
+            int uniqueRoleCount = allRolesList.Count;
+            _Log(string.Format("Loaded {0} officers with {1} unique roles", officerCount, uniqueRoleCount), this);
+            
+            // Store role list for future use
+            roleList = allRolesList;
+            
             //Success
             isInitializing = false;
             isReady = true;
@@ -325,27 +601,71 @@ namespace LocalPoliceDepartment.Utilities.AccountManager
         /// <param name="csv">The CSV file to parse.</param>
         public void ParseCSV(string csv)
         {
-            string[] lines = csv.Split(new char[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
-
+            if (_securityDebugLogging)
+            {
+                _LogSecurityStatus("Parsing CSV data: " + csv.Length + " characters");
+            }
+            
+            // Handle both Unix (\n) and Windows (\r\n) line endings
+            string[] lines = csv.Replace("\r\n", "\n").Split(new char[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            if (lines.Length == 0)
+            {
+                _LogError("CSV data is empty or invalid", this);
+                return;
+            }
+            
             string[] roleNames = lines[0].Split(',');
+            // Trim the role names to remove any whitespace
+            for (int i = 0; i < roleNames.Length; i++)
+            {
+                roleNames[i] = roleNames[i].Trim();
+            }
+            
+            if (_securityDebugLogging)
+            {
+                _LogSecurityStatus("CSV header contains " + roleNames.Length + " columns");
+            }
 
             nameToRankDictionary = new DataDictionary();
             for (int i = 1; i < lines.Length; i++)
             {
                 string[] values = lines[i].Split(',');
-                string name = values[0];
-                DataDictionary officerRoles = new DataDictionary();
-                for (int j = 1; j < values.Length; j++)
+                if (values.Length == 0) continue;
+                
+                // Skip rows with insufficient data
+                if (values.Length < 2)
                 {
-                    string value = values[j];
+                    _LogWarning("Row " + i + " has insufficient data, skipping", this);
+                    continue;
+                }
+                
+                string name = values[0].Trim();
+                DataDictionary officerRoles = new DataDictionary();
+                for (int j = 1; j < values.Length && j < roleNames.Length; j++)
+                {
+                    string value = values[j].Trim();
                     //Skip entries which parse to "false"
                     if (bool.TryParse(value, out bool result) && result == false) {
                         //Do not add false entries
                     } else {
-                        officerRoles.Add(roleNames[j], values[j]);
+                        officerRoles.Add(roleNames[j], value);
                     }
                 }
-                nameToRankDictionary.Add(name, officerRoles);
+                
+                // Only add officers with at least one role
+                if (officerRoles.Count > 0)
+                {
+                    nameToRankDictionary.Add(name, officerRoles);
+                }
+                else
+                {
+                    _LogWarning("Officer '" + name + "' has no roles, skipping", this);
+                }
+            }
+
+            if (_securityDebugLogging)
+            {
+                _LogSecurityStatus("CSV parse successful: " + nameToRankDictionary.Count + " entries");
             }
         }
 
@@ -355,13 +675,27 @@ namespace LocalPoliceDepartment.Utilities.AccountManager
         /// <param name="json">The JSON file to parse.</param>
         public void ParseJSON(string json)
         {
+            if (_securityDebugLogging)
+            {
+                _LogSecurityStatus("Parsing JSON data: " + json.Length + " characters");
+            }
+            
             if(VRCJson.TryDeserializeFromJson(json, out DataToken result))
             {
                 nameToRankDictionary = result.DataDictionary;
+                
+                if (_securityDebugLogging)
+                {
+                    _LogSecurityStatus("JSON parse successful: " + nameToRankDictionary.Count + " entries");
+                }
             }
             else
             {
                 _LogError("Failed to parse JSON data. Accounts are not be loaded but the script did not crash. You may try again with a different set of data.", this);
+                if (_securityDebugLogging)
+                {
+                    _LogSecurityStatus("JSON parse failed");
+                }
                 isInitializing = false;
                 isReady = false;
                 initializedSuccessfully = false;
@@ -521,7 +855,7 @@ namespace LocalPoliceDepartment.Utilities.AccountManager
             DataDictionary filteredDictionary = new DataDictionary();
 
             //I am so sorry for this abomination but it runs faster than checking each iteration
-            //because UdonSharp compiles switch statements as if/elseif/elseif/elseif/else
+            //because UdonSharp compiles switch statements as if/elseif/elseif/elseif/elseif/elseif/else
             switch (comparator)
             {
                 case Comparator.EqualTo:
@@ -681,6 +1015,17 @@ namespace LocalPoliceDepartment.Utilities.AccountManager
             else
                 UnityEngine.Debug.Log("<color=navy><b>Account Manager:</b></color> <color=#" + hexColor + ">" + value + "</color>", context);
         }
+
+        // Security-specific logging
+        internal void _LogSecurityStatus(string message)
+        {
+            // Only log security messages if both secure loading and debug logging are enabled
+            if (_enableSecureLoading && _securityDebugLogging)
+            {
+                string hexColor = "00A5FF"; // Cyan-blue color for security logs
+                Debug.Log("<color=navy><b>Account Manager Security:</b></color> <color=#" + hexColor + ">" + message + "</color>");
+            }
+        }
         #endregion
     }
 
@@ -714,6 +1059,9 @@ namespace LocalPoliceDepartment.Utilities.AccountManager
         private SerializedProperty _RemoteDataURL;
         private SerializedProperty desiredDataSource;
         private SerializedProperty dataFormat;
+        private SerializedProperty _enableSecureLoading;
+        private SerializedProperty _dataSignature;
+        private SerializedProperty _securityDebugLogging;
 
         private void OnEnable() {
             performanceLogging = serializedObject.FindProperty("performanceLogging");
@@ -722,23 +1070,57 @@ namespace LocalPoliceDepartment.Utilities.AccountManager
             _RemoteDataURL = serializedObject.FindProperty("_remoteDataURL");
             desiredDataSource = serializedObject.FindProperty("desiredDataSource");
             dataFormat = serializedObject.FindProperty("dataFormat");
+            _enableSecureLoading = serializedObject.FindProperty("_enableSecureLoading");
+            _dataSignature = serializedObject.FindProperty("_dataSignature");
+            _securityDebugLogging = serializedObject.FindProperty("_securityDebugLogging");
         }
 
         public override void OnInspectorGUI() {
+            serializedObject.Update();
             OfficerAccountManager manager = (OfficerAccountManager)target;
 
-            HeaderBG    = HeaderBG    ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.localpolicedepartment.accountmanager/Resources/Layers/BG.png", typeof(Texture2D));
-            HeaderLogo  = HeaderLogo  ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.localpolicedepartment.accountmanager/Resources/Layers/Logo.png", typeof(Texture2D));
-            HeaderText  = HeaderText  ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.localpolicedepartment.accountmanager/Resources/Layers/Words.png", typeof(Texture2D));
-            HeaderTape  = HeaderTape  ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.localpolicedepartment.accountmanager/Resources/Layers/TapeL1000.png", typeof(Texture2D));
+            // Try to load textures from package path first, then try relative paths, then fallback to blank textures if needed
+            string packagePath = "Packages/com.localpolicedepartment.accountmanager";
+            string relativePath = "Assets";
+            
+            HeaderBG = HeaderBG ?? TryLoadTexture(packagePath + "/Resources/Layers/BG.png", relativePath + "/Resources/Layers/BG.png");
+            HeaderLogo = HeaderLogo ?? TryLoadTexture(packagePath + "/Resources/Layers/Logo.png", relativePath + "/Resources/Layers/Logo.png");
+            HeaderText = HeaderText ?? TryLoadTexture(packagePath + "/Resources/Layers/Words.png", relativePath + "/Resources/Layers/Words.png");
+            HeaderTape = HeaderTape ?? TryLoadTexture(packagePath + "/Resources/Layers/TapeL1000.png", relativePath + "/Resources/Layers/TapeL1000.png");
 
-            twitterLogo = twitterLogo ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.localpolicedepartment.accountmanager/Resources/SocialLogos/TwitterLogo.png", typeof(Texture2D));
-            discordLogo = discordLogo ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.localpolicedepartment.accountmanager/Resources/SocialLogos/DiscordLogo.png", typeof(Texture2D));
-            youtubeLogo = youtubeLogo ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.localpolicedepartment.accountmanager/Resources/SocialLogos/YoutubeLogo.png", typeof(Texture2D));
-            kofiLogo    = kofiLogo    ?? (Texture2D)AssetDatabase.LoadAssetAtPath("Packages/com.localpolicedepartment.accountmanager/Resources/SocialLogos/KofiLogo.png", typeof(Texture2D));
-
-            float imageAspectRatio = ((float) HeaderBG.width) / ((float) HeaderBG.height);
-            float screenAspectRatio = ((float) Screen.width) / ((float) 128);
+            twitterLogo = twitterLogo ?? TryLoadTexture(packagePath + "/Resources/SocialLogos/TwitterLogo.png", relativePath + "/Resources/SocialLogos/TwitterLogo.png", "d_BuildSettings.Twitter");
+            discordLogo = discordLogo ?? TryLoadTexture(packagePath + "/Resources/SocialLogos/DiscordLogo.png", relativePath + "/Resources/SocialLogos/DiscordLogo.png", "d_UnityLogo");
+            youtubeLogo = youtubeLogo ?? TryLoadTexture(packagePath + "/Resources/SocialLogos/YoutubeLogo.png", relativePath + "/Resources/SocialLogos/YoutubeLogo.png", "d_BuildSettings.Standalone");
+            kofiLogo = kofiLogo ?? TryLoadTexture(packagePath + "/Resources/SocialLogos/KofiLogo.png", relativePath + "/Resources/SocialLogos/KofiLogo.png", "d_FilterByType");
+            
+            // Create fallback texture if needed for the background
+            if (HeaderBG == null)
+            {
+                HeaderBG = new Texture2D(1, 1);
+                HeaderBG.SetPixel(0, 0, new Color(0.2f, 0.2f, 0.2f, 1.0f));
+                HeaderBG.Apply();
+            }
+            
+            float imageAspectRatio = HeaderBG != null ? ((float)HeaderBG.width) / ((float)HeaderBG.height) : 4f;
+            float screenAspectRatio = ((float)Screen.width) / ((float)128);
+            
+            // Helper method to load textures with fallbacks
+            Texture2D TryLoadTexture(string primaryPath, string fallbackPath, string builtinIcon = null)
+            {
+                Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(primaryPath);
+                
+                if (texture == null)
+                {
+                    texture = AssetDatabase.LoadAssetAtPath<Texture2D>(fallbackPath);
+                }
+                
+                if (texture == null && !string.IsNullOrEmpty(builtinIcon))
+                {
+                    texture = EditorGUIUtility.FindTexture(builtinIcon);
+                }
+                
+                return texture;
+            }
 
             bool horizontalStretch = imageAspectRatio < screenAspectRatio;
             GUI.DrawTexture(new Rect(0, 0, Screen.width, 128), HeaderBG, horizontalStretch ? ScaleMode.ScaleAndCrop : ScaleMode.StretchToFill);
@@ -838,6 +1220,55 @@ namespace LocalPoliceDepartment.Utilities.AccountManager
 
                 EditorGUILayout.PropertyField(dataFormat, new GUIContent("Data Format", "The expected format of the data for parsing."));
                 EditorGUILayout.PropertyField(performanceLogging, new GUIContent("Performance Logging", "Enables performance logging for the account manager. This will print the time it takes to parse the data and generate lists to the console."));
+            
+                if (GUILayout.Button("Open Data Validator"))
+                {
+                    EditorApplication.ExecuteMenuItem("LPD/Account Manager/Data Format Validator");
+                }
+
+                if (GUILayout.Button("Open Offline Data Downloader"))
+                {
+                    EditorApplication.ExecuteMenuItem("LPD/Account Manager/Data Downloader");
+                }
+
+                EditorGUILayout.LabelField("Security Settings", EditorStyles.boldLabel);
+                using (new GUILayout.VerticalScope(EditorStyles.helpBox))
+                {
+                    EditorGUILayout.PropertyField(_enableSecureLoading, new GUIContent("Enable Secure Loading", "Enable encryption and MITM protection for downloaded data"));
+                    
+                    if (_enableSecureLoading.boolValue)
+                    {
+                        // Use PasswordField to hide the actual key text with asterisks
+                        string securityKey = _dataSignature.stringValue;
+                        string maskedKey = EditorGUILayout.PasswordField(
+                            new GUIContent("Security Key", "The key used to decrypt the data. Must match the key used to encrypt the data."), 
+                            securityKey);
+
+                        // Only update if the value changed
+                        if (securityKey != maskedKey)
+                        {
+                            _dataSignature.stringValue = maskedKey;
+                        }
+                        
+                        EditorGUILayout.PropertyField(_securityDebugLogging, new GUIContent("Security Debug Logging", "Enable detailed logging of encryption/decryption process (Editor only)"));
+                        
+                        if (_securityDebugLogging.boolValue)
+                        {
+                            EditorGUILayout.HelpBox("Security debug logging is enabled. This will log detailed information about the encryption/decryption process in the Editor console.", MessageType.Info);
+                        }
+                        
+                        if (string.IsNullOrEmpty(_dataSignature.stringValue))
+                        {
+                            EditorGUILayout.HelpBox("Please enter a security key to decrypt the data", MessageType.Warning);
+                        }
+                        
+                        if (GUILayout.Button("Open Data Security Tool"))
+                        {
+                            EditorApplication.ExecuteMenuItem("LPD/Account Manager/Data Security Tool");
+                        }
+                    }
+                }
+
             if (EditorGUI.EndChangeCheck()) {
                 serializedObject.ApplyModifiedProperties();
             }
@@ -879,6 +1310,12 @@ namespace LocalPoliceDepartment.Utilities.AccountManager
                 GameObject am = (GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath("Packages/com.localpolicedepartment.accountmanager/Officer Account Manager.prefab", typeof(GameObject)));
                 PrefabUtility.UnpackPrefabInstance(am, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
             }
+        }
+        
+        [MenuItem("LPD/Account Manager/Data Format Validator", false, 101)]
+        public static void OpenDataFormatValidator()
+        {
+            EditorWindow.GetWindow(System.Type.GetType("LocalPoliceDepartment.Utilities.AccountManager.Editor.DataFormatValidator, Assembly-CSharp-Editor"));
         }
     }
     #endif
